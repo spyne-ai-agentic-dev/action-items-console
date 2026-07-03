@@ -154,6 +154,13 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   const resolved = useMemo(() => items.filter((i) => i.status === 'completed' && inScope(i)), [items, scope])
   const incorrect = useMemo(() => items.filter((i) => i.status === 'incorrect' && inScope(i)), [items, scope])
 
+  // Department-scoped sets for the TOP-BAR metrics + tab totals: pending/resolved restricted to the
+  // active department (intent→dept) and Manager/Mine scope, but NOT the drill-down filters — so the
+  // bar shows e.g. Sales 57 / Service 43 (not the 100-item total), while clicking a tile narrows the list.
+  const inDept = (i) => filters.dept === 'all' || deptOf(i) === filters.dept
+  const deptPending = useMemo(() => pending.filter((i) => inScope(i) && inDept(i)), [pending, filters.dept, scope, slaVersion])
+  const deptResolved = useMemo(() => resolved.filter(inDept), [resolved, filters.dept, slaVersion])
+
   const filteredPending = useMemo(() => pending.filter((i) => {
     if (scope === 'mine' && i.assignee_user_id !== CURRENT_USER_ID) return false
     if (filters.assignment === 'unassigned' && i.assignee_user_id) return false
@@ -200,14 +207,13 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
     return arr
   }, [filteredPending, groupBy, slaVersion])
 
+  // Top-bar metrics reflect the active DEPARTMENT only (deptPending/deptResolved), not the 100-item total.
   const metrics = useMemo(() => ({
-    breaching: pending.filter(isPastSla).length,
-    unassigned: pending.filter((i) => !i.assignee_user_id).length,
-    repeatCallers: new Set(pending.filter((i) => i.repeat_caller_count >= 3).map((i) => i.customer_id)).size,
-    // Real count: resolved items closed today (0 for live data, which only fetches pending) —
-    // not the bundled mock constant, which otherwise showed "11" on an empty live board.
-    clearedToday: resolved.filter((i) => i.closed_at && createdDayKey({ ...i, created_at: i.closed_at }) === 'today').length,
-  }), [pending, resolved, slaVersion])
+    breaching: deptPending.filter(isPastSla).length,
+    unassigned: deptPending.filter((i) => !i.assignee_user_id).length,
+    repeatCallers: new Set(deptPending.filter((i) => i.repeat_caller_count >= 3).map((i) => i.customer_id)).size,
+    clearedToday: deptResolved.filter((i) => i.closed_at && createdDayKey({ ...i, created_at: i.closed_at }) === 'today').length,
+  }), [deptPending, deptResolved, slaVersion])
 
   // ── Selection resolution ──────────────────────────────────────────
   // None view → a single item; grouped views → a group's worth of items.
