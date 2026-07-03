@@ -1,0 +1,2466 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Attio-inspired Design System */
+:root {
+  /* Core Colors - Clean and Professional */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  
+  /* Primary - Custom Purple #4600f2 */
+  --primary: #4600f2;
+  --primary-foreground: oklch(1 0 0);
+  
+  /* Secondary and Muted - Refined Grays */
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.25 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.25 0 0);
+  
+  /* Status Colors */
+  --destructive: oklch(0.6 0.25 25);
+  --destructive-foreground: oklch(1 0 0);
+  
+  /* Borders and Inputs */
+  --border: oklch(0.91 0 0);
+  --input: oklch(0.91 0 0);
+  --ring: #4600f2;
+  
+  /* Chart Colors */
+  --chart-1: oklch(0.65 0.22 40);
+  --chart-2: oklch(0.6 0.12 185);
+  --chart-3: oklch(0.4 0.07 225);
+  --chart-4: oklch(0.83 0.19 85);
+  --chart-5: oklch(0.77 0.19 70);
+  
+  /* Radius - More rounded for Attio style */
+  --radius: 0.75rem;
+  
+  /* Sidebar */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.15 0 0);
+  --sidebar-primary: #4600f2;
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.96 0 0);
+  --sidebar-accent-foreground: oklch(0.25 0 0);
+  --sidebar-border: oklch(0.91 0 0);
+  --sidebar-ring: #4600f2;
+  
+  /* Attio-specific Variables */
+  --attio-purple: #4600f2;
+  --attio-purple-light: #f0ebff;
+  --attio-purple-dark: #3600d4;
+  
+  /* Gray Scale - Attio inspired */
+  --attio-gray-50: oklch(0.98 0 0);
+  --attio-gray-100: oklch(0.96 0 0);
+  --attio-gray-200: oklch(0.91 0 0);
+  --attio-gray-300: oklch(0.78 0 0);
+  --attio-gray-400: oklch(0.6 0 0);
+  --attio-gray-500: oklch(0.46 0 0);
+  --attio-gray-600: oklch(0.32 0 0);
+  --attio-gray-700: oklch(0.23 0 0);
+  --attio-gray-800: oklch(0.15 0 0);
+  --attio-gray-900: oklch(0.1 0 0);
+  
+  /* Status Colors - Attio Style */
+  --attio-success: oklch(0.65 0.15 145);
+  --attio-success-light: oklch(0.95 0.05 145);
+  --attio-warning: oklch(0.75 0.15 85);
+  --attio-warning-light: oklch(0.95 0.05 85);
+  --attio-error: oklch(0.65 0.2 25);
+  --attio-error-light: oklch(0.95 0.05 25);
+  
+  /* Shadows - Subtle and refined */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* Max 2.0 — Spyne Console shell (see design-system/max-2.md, lib/design-system/max-2.ts) */
+  /* Max 2 main column inset — horizontal + bottom; top is slightly larger for air below shell chrome */
+  --max2-page-padding: 24px;
+  --max2-page-padding-top: 32px;
+  /** Studio module column body inset below secondary nav (`moduleSecondaryNavPageBodyStudio`) */
+  --max2-studio-module-body-padding-top: 1.5rem;
+  /** Gap from page title cluster to first major block (tighter than `--spyne-sales-stack-gap`) */
+  --max2-page-header-after-gap: 16px;
+  --max2-shell-bg: #f4f5f8;
+
+  /* Spyne Console — canonical tokens (scoped defaults; .max2-spyne overrides consumption) */
+  --spyne-primary: #4600f2;
+  --spyne-primary-soft: #4600f214;
+  --spyne-page-bg: #f4f5f8;
+  --spyne-surface: #ffffff;
+  --spyne-text-primary: #1a1a1a;
+  --spyne-text-secondary: #6b7280;
+  --spyne-border: #e5e7eb;
+  --spyne-success: #027a48;
+  --spyne-warning: #facc15;
+  --spyne-error: #d13313;
+  --spyne-info: #3b82f6;
+  --spyne-primary-hover: #3b00d1;
+  --spyne-primary-pressed: #3200b8;
+  --spyne-disabled-bg: #f3f4f6;
+  --spyne-disabled-text: #9ca3af;
+  /** Readable warning label on white (pairs with --spyne-warning; matches .spyne-badge-warning text) */
+  --spyne-warning-ink: #854d0e;
+
+  /* Design-system chips (`.spyne-ds-chip`) — extended tones beyond core semantic tokens */
+  --spyne-chip-neutral: #64748b;
+  --spyne-chip-charcoal: #374151;
+  --spyne-chip-cyan: #0891b2;
+  --spyne-chip-pink: #db2777;
+  --spyne-chip-orange: #ea580c;
+  --spyne-chip-crimson: #b91c1c;
+  --spyne-chip-rose: #e11d48;
+
+  /*
+   * Dark elevated surfaces — tooltips, chart popovers, custom dark panels on light charts.
+   * Text + series hues are tuned for ≥4.5:1 on `--spyne-dark-elevated-bg` (WCAG 1.4.3 normal text).
+   * Do not reuse light-theme semantic hex (`--spyne-success`, `--spyne-info`, …) as colored *text* on this bg.
+   */
+  --spyne-dark-elevated-bg: #1e1e1e;
+  --spyne-on-dark-text: #f3f4f6;
+  --spyne-on-dark-text-muted: #9ca3af;
+  /** Ordered series — align index with light `CHART_SERIES` where semantics match */
+  --spyne-chart-on-dark-1: #b794f6;
+  --spyne-chart-on-dark-2: #7eb6ff;
+  --spyne-chart-on-dark-3: #6ee7a0;
+  --spyne-chart-on-dark-4: #22d3ee;
+  --spyne-chart-on-dark-5: #f472b6;
+  --spyne-chart-on-dark-6: #fdba74;
+  --spyne-chart-on-dark-7: #f87171;
+  --spyne-chart-on-dark-8: #fcd34d;
+
+  /**
+   * Dark tooltip shell (Studio inventory: Publish column, holding cost, lot KPI strip).
+   * Outer card sits on the page; arrow fill matches shell. Inner wells use `--spyne-dark-elevated-bg`.
+   */
+  --spyne-tooltip-dark-shell-bg: #121212;
+  --spyne-tooltip-dark-label-muted: #888888;
+  --spyne-tooltip-dark-shadow: 0 8px 32px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
+
+  /*
+   * Pills / circular caps — line-tab count badges, chips; must exist outside `.console-v2-sales-root`
+   * (that file also sets this for legacy Sales scope)
+   */
+  --spyne-radius-pill: 9999px;
+
+  /*
+   * Cards — Studio / Lot / Sales (shadcn `Card` under `.max2-spyne` + `.spyne-card` in Sales Console V2)
+   * Border radius 8px, section title 14px/600, padding 1rem — see design-system/max-2.md
+   */
+  --spyne-card-radius: 8px;
+  --spyne-card-border: var(--spyne-border);
+  --spyne-card-bg: var(--spyne-surface);
+  --spyne-card-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  --spyne-card-gap: 16px;
+  --spyne-card-padding-x: 1rem;
+  --spyne-card-header-padding-top: 1rem;
+  --spyne-card-header-padding-bottom: 0.75rem;
+  --spyne-card-content-padding-bottom: 1rem;
+  --spyne-card-title-font-size: 15px;
+  --spyne-card-title-font-weight: 600;
+  --spyne-card-title-line-height: 1.2;
+  --spyne-card-title-color: var(--spyne-text-primary);
+  --spyne-card-description-font-size: 14px;
+  --spyne-card-description-line-height: 1.5;
+  --spyne-card-description-color: var(--spyne-text-secondary);
+
+  /*
+   * Toolbar — segmented switcher + filter dropdown trigger (Sales overview, page toolbars)
+   * See design-system/max-2.md — `spyneToolbarTokens` in `lib/design-system/max-2.ts`
+   */
+  --spyne-toolbar-control-height: 36px;
+  --spyne-toolbar-control-radius: 8px;
+  --spyne-toolbar-control-gap: 12px;
+  --spyne-toolbar-segment-padding-x: 12px;
+
+  /*
+   * Line tabs — underline / hairline strip (Sales sub-pages, in-card tabs)
+   * Matches spacing: strip margin-bottom = section gap (24px)
+   */
+  --spyne-line-tab-font-size: 14px;
+  --spyne-line-tab-font-size-compact: 12px;
+  --spyne-line-tab-indicator-width: 2px;
+  --spyne-line-tab-padding-x: 12px;
+  --spyne-line-tab-padding-bottom: 10px;
+  --spyne-line-tab-gap: 6px;
+  --spyne-line-tab-strip-column-gap: 20px;
+  /** Vertical stack between major blocks on Sales (and aligned surfaces) */
+  --spyne-sales-stack-gap: 24px;
+
+  /*
+   * Checkbox — soft-square control, primary fill + white check when checked
+   * See design-system/max-2.md — `spyneCheckboxTokens` in `lib/design-system/max-2.ts`
+   */
+  --spyne-checkbox-size: 20px;
+  /** ~30% of side length: reads as a rounded square (not a circle, not a sharp box) */
+  --spyne-checkbox-radius: 6px;
+  --spyne-checkbox-check-size: 14px;
+  /** Medium stroke; caps round via `.max2-spyne [data-slot="checkbox-indicator"]` rules */
+  --spyne-checkbox-check-stroke: 2.25px;
+}
+
+.dark {
+  --background: oklch(0.08 0 0);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.1 0 0);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.1 0 0);
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: #4600f2;
+  --primary-foreground: oklch(0.08 0 0);
+  --secondary: oklch(0.15 0 0);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.15 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.15 0 0);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.2 0 0);
+  --input: oklch(0.2 0 0);
+  --ring: #4600f2;
+  --sidebar: oklch(0.12 0 0);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: #4600f2;
+  --sidebar-primary-foreground: oklch(0.08 0 0);
+  --sidebar-accent: oklch(0.15 0 0);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(0.2 0 0);
+  --sidebar-ring: #4600f2;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --spacing-max2-page: var(--max2-page-padding);
+  --spacing-max2-page-top: var(--max2-page-padding-top);
+  --color-max2-shell: var(--max2-shell-bg);
+  --color-spyne-primary: var(--spyne-primary);
+  --color-spyne-primary-soft: var(--spyne-primary-soft);
+  --color-spyne-page: var(--spyne-page-bg);
+  --color-spyne-surface: var(--spyne-surface);
+  --color-spyne-text: var(--spyne-text-primary);
+  --color-spyne-text-secondary: var(--spyne-text-secondary);
+  --color-spyne-border: var(--spyne-border);
+  --color-spyne-success: var(--spyne-success);
+  --color-spyne-warning: var(--spyne-warning);
+  --color-spyne-error: var(--spyne-error);
+  --color-spyne-info: var(--spyne-info);
+  --color-spyne-warning-ink: var(--spyne-warning-ink);
+  --color-spyne-disabled-bg: var(--spyne-disabled-bg);
+  --color-spyne-disabled-text: var(--spyne-disabled-text);
+  --color-spyne-dark-elevated: var(--spyne-dark-elevated-bg);
+  --color-spyne-on-dark-text: var(--spyne-on-dark-text);
+  --color-spyne-on-dark-muted: var(--spyne-on-dark-text-muted);
+  --color-spyne-chart-on-dark-1: var(--spyne-chart-on-dark-1);
+  --color-spyne-chart-on-dark-2: var(--spyne-chart-on-dark-2);
+  --color-spyne-chart-on-dark-3: var(--spyne-chart-on-dark-3);
+  --color-spyne-chart-on-dark-4: var(--spyne-chart-on-dark-4);
+  --color-spyne-chart-on-dark-5: var(--spyne-chart-on-dark-5);
+  --color-spyne-chart-on-dark-6: var(--spyne-chart-on-dark-6);
+  --color-spyne-chart-on-dark-7: var(--spyne-chart-on-dark-7);
+  --color-spyne-chart-on-dark-8: var(--spyne-chart-on-dark-8);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  
+  html, body {
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    letter-spacing: -0.01em;
+    line-height: 1.5;
+  }
+
+  .material-symbols-outlined {
+    font-family: "Material Symbols Outlined", sans-serif;
+    font-weight: normal;
+    font-style: normal;
+    font-variation-settings:
+      "FILL" 0,
+      "wght" 400,
+      "GRAD" 0,
+      "opsz" 24;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Scrollbar Styling */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    border-radius: 9999px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgb(218, 210, 210);
+    border-radius: 9999px;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+  }
+}
+
+@layer components {
+  /* Attio-inspired Typography Classes */
+  .attio-heading-1 {
+    @apply text-3xl font-bold leading-tight tracking-tight text-foreground;
+    letter-spacing: -0.025em;
+  }
+  
+  .attio-heading-2 {
+    @apply text-2xl font-semibold leading-tight text-foreground;
+    letter-spacing: -0.02em;
+  }
+  
+  .attio-heading-3 {
+    @apply text-xl font-semibold leading-snug text-foreground;
+    letter-spacing: -0.015em;
+  }
+  
+  .attio-body-large {
+    @apply text-lg leading-relaxed text-muted-foreground;
+  }
+  
+  .attio-body {
+    @apply text-base leading-relaxed text-muted-foreground;
+  }
+  
+  .attio-body-small {
+    @apply text-sm leading-normal text-muted-foreground;
+  }
+  
+  .attio-caption {
+    @apply text-xs font-medium leading-tight uppercase tracking-wider text-muted-foreground opacity-75;
+  }
+  
+  /* Attio-inspired Component Classes */
+  .attio-card {
+    @apply bg-card border border-border rounded-xl shadow-sm transition-all duration-200 ease-in-out;
+  }
+  
+  .attio-card:hover {
+    @apply shadow-md;
+  }
+  
+  .attio-card-interactive {
+    @apply bg-card border border-border rounded-xl shadow-sm transition-all duration-200 ease-in-out cursor-pointer;
+  }
+  
+  .attio-card-interactive:hover {
+    @apply shadow-lg -translate-y-0.5;
+  }
+  
+  .attio-button-primary {
+    @apply bg-primary text-primary-foreground border-0 rounded-lg px-6 py-3 font-medium text-sm transition-all duration-200 cursor-pointer inline-flex items-center justify-center;
+  }
+  
+  .attio-button-primary:hover {
+    @apply shadow-md -translate-y-0.5 opacity-90;
+  }
+  
+  .attio-button-secondary {
+    @apply bg-secondary text-secondary-foreground border border-border rounded-lg px-6 py-3 font-medium text-sm transition-all duration-200 cursor-pointer inline-flex items-center justify-center;
+  }
+  
+  .attio-button-secondary:hover {
+    @apply bg-muted;
+  }
+  
+  .attio-input {
+    @apply bg-background border border-border rounded-lg px-4 py-3 text-sm transition-all duration-200 outline-none w-full;
+  }
+  
+  .attio-input:focus {
+    @apply border-primary ring-2 ring-primary/20;
+  }
+  
+  .attio-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .attio-badge-success {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200;
+  }
+  
+  .attio-badge-warning {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200;
+  }
+  
+  .attio-badge-error {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200;
+  }
+  
+  .attio-badge-info {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200;
+  }
+  
+  /* Max 2.0 — page chrome (see design-system/max-2.md, lib/design-system/max-2.ts) */
+  .max2-page-title {
+    @apply text-xl font-semibold tracking-tight text-foreground;
+  }
+
+  .max2-page-description {
+    @apply text-sm text-muted-foreground mt-1;
+  }
+
+  /**
+   * Max 2 page vertical stack — 24px between major blocks; when the first block is a page
+   * header (contains `.max2-page-title`), the gap to the next block is 16px.
+   */
+  .spyne-max2-page-stack {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .spyne-max2-page-stack > * + * {
+    margin-top: var(--spyne-sales-stack-gap);
+  }
+
+  .spyne-max2-page-stack > :first-child:has(.max2-page-title) + * {
+    margin-top: var(--max2-page-header-after-gap);
+  }
+
+  /*
+   * Max 2.0 main column (non-Sales): gentle opacity ramp so hierarchy reads without
+   * washing out explicit utilities (text-muted-foreground, text-card-foreground, etc.).
+   */
+  .max2-content {
+    @apply text-foreground/88;
+  }
+
+  .max2-content .max2-page-title {
+    @apply text-foreground;
+  }
+
+  .max2-content .max2-page-description {
+    @apply text-muted-foreground/90;
+  }
+
+  /* Slightly stronger than body copy when no explicit text-* color on the heading */
+  .max2-content :where(h2, h3) {
+    @apply text-foreground/92;
+  }
+
+  .max2-content [data-slot="card"] :where(h2, h3) {
+    color: inherit;
+  }
+
+  /*
+   * Spyne Console — Max 2 scoped surface (Studio AI, Lot View, Recon, Sourcing only).
+   * Overrides shadcn/Tailwind primitives inside this subtree to match console.spyne.ai tokens.
+   */
+  .max2-spyne {
+    --border: var(--spyne-border);
+    --input: var(--spyne-border);
+    --foreground: var(--spyne-text-primary);
+    --muted-foreground: var(--spyne-text-secondary);
+    --muted: #fafafa;
+    --secondary: #f3f4f6;
+    --accent: #f9fafb;
+    --card: var(--spyne-surface);
+    --card-foreground: var(--spyne-text-primary);
+    --popover: var(--spyne-surface);
+    --popover-foreground: var(--spyne-text-primary);
+    --primary: var(--spyne-primary);
+    --primary-foreground: #ffffff;
+    --ring: var(--spyne-primary);
+    --background: var(--spyne-surface);
+    --destructive: var(--spyne-error);
+    --destructive-foreground: #ffffff;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    color: var(--spyne-text-primary);
+  }
+
+  /* Sales (Console V2) — full-width page canvas matches other Spyne routes */
+  .max2-spyne .console-v2-sales-root {
+    background-color: var(--spyne-page-bg);
+  }
+
+  .max2-spyne .max2-page-title {
+    font-size: 20px;
+    line-height: 1.4;
+    font-weight: 600;
+    color: var(--spyne-text-primary);
+    letter-spacing: normal;
+  }
+
+  .max2-spyne .max2-page-description {
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 400;
+    color: var(--spyne-text-secondary);
+  }
+
+  /* Console V2 Sales: same explicit page title scale as Lot inventory / Marketing (avoids utility drift). */
+  .max2-spyne .console-v2-sales-root .max2-page-title {
+    font-size: 20px;
+    line-height: 1.4;
+    font-weight: 600;
+    color: var(--spyne-text-primary);
+    letter-spacing: normal;
+  }
+
+  .max2-spyne .console-v2-sales-root .max2-page-description {
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 400;
+    color: var(--spyne-text-secondary);
+  }
+
+  .max2-spyne [data-slot="card"] {
+    border-radius: var(--spyne-card-radius);
+    border-color: var(--spyne-card-border);
+    background: var(--spyne-card-bg);
+    box-shadow: var(--spyne-card-shadow);
+    padding-top: 0;
+    padding-bottom: 0;
+    gap: var(--spyne-card-gap);
+  }
+
+  .max2-spyne [data-slot="card-header"] {
+    padding-left: var(--spyne-card-padding-x);
+    padding-right: var(--spyne-card-padding-x);
+    padding-top: var(--spyne-card-header-padding-top);
+    padding-bottom: var(--spyne-card-header-padding-bottom);
+    gap: 0.25rem;
+    border-bottom: none;
+    box-shadow: none;
+  }
+
+  .max2-spyne [data-slot="card-title"] {
+    font-size: var(--spyne-card-title-font-size);
+    font-weight: var(--spyne-card-title-font-weight);
+    line-height: var(--spyne-card-title-line-height);
+    color: var(--spyne-card-title-color);
+  }
+
+  .max2-spyne [data-slot="card-description"] {
+    font-size: var(--spyne-card-description-font-size);
+    line-height: var(--spyne-card-description-line-height);
+    color: var(--spyne-card-description-color);
+  }
+
+  .max2-spyne [data-slot="card-content"] {
+    padding-left: var(--spyne-card-padding-x);
+    padding-right: var(--spyne-card-padding-x);
+    padding-top: 0;
+    padding-bottom: var(--spyne-card-content-padding-bottom);
+  }
+
+  .max2-spyne [data-slot="card-footer"] {
+    padding-left: var(--spyne-card-padding-x);
+    padding-right: var(--spyne-card-padding-x);
+  }
+
+  /**
+   * Dashboard Insights card — Figma 3679:2068 (gradient stroke, blurred orange glow, no purple wash).
+   */
+  .max2-spyne .max2-insights-card-shell {
+    --max2-insights-ai-gradient: linear-gradient(
+      115.9deg,
+      #ed8939 30.86%,
+      #e83e54 53.38%,
+      #b651d7 65.48%,
+      #7f6af2 79.74%,
+      #5bbff6 98.75%
+    );
+    padding: 1px;
+    border: none;
+    border-radius: 16px;
+    box-shadow: none;
+    background-color: transparent;
+    background-image: var(--max2-insights-ai-gradient);
+  }
+
+  .max2-spyne [data-slot="card"].max2-insights-card-inner {
+    border: none;
+    border-radius: 15px;
+    box-shadow: none;
+    background: var(--spyne-card-bg);
+  }
+
+  /* Figma 3679:2069 — soft orange layer blur (keep low so it does not overpower the card). */
+  .max2-spyne .max2-insights-card-glow {
+    position: absolute;
+    left: 50%;
+    top: -1px;
+    z-index: 0;
+    width: min(1128px, 200vw);
+    height: 743px;
+    transform: translateX(-50%);
+    border: none;
+    border-radius: 0;
+    background: rgba(237, 137, 57, 0.22);
+    filter: blur(24px);
+    opacity: 0.18;
+    pointer-events: none;
+  }
+
+  /** Explicit class — same as `[data-slot="card-title"]` for non-shadcn markup */
+  .max2-spyne .spyne-card-title {
+    font-size: var(--spyne-card-title-font-size);
+    font-weight: var(--spyne-card-title-font-weight);
+    line-height: var(--spyne-card-title-line-height);
+    color: var(--spyne-card-title-color);
+  }
+
+  /**
+   * Dark tooltip — Radix Tooltip content wrapper (transparent) + inner panel (Publish, holding cost, KPI).
+   * Use `spyneComponentClasses.darkTooltip*` from `lib/design-system/max-2.ts` and `SpyneDarkTooltipPanel`.
+   *
+   * Radix portals Content to `document.body`, so rules must also match without a `.max2-spyne` ancestor.
+   */
+  .max2-spyne .spyne-dark-tooltip-radix-content,
+  .spyne-dark-tooltip-radix-content {
+    z-index: 100;
+    width: max-content;
+    max-width: min(100vw - 2rem, 320px);
+    border: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .max2-spyne .spyne-dark-tooltip-panel,
+  .spyne-dark-tooltip-panel {
+    display: inline-block;
+    box-sizing: border-box;
+    max-width: min(100vw - 2rem, 320px);
+    border-radius: 1rem;
+    background: var(--spyne-tooltip-dark-shell-bg);
+    padding: 1.25rem;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--spyne-on-dark-text);
+    box-shadow: var(--spyne-tooltip-dark-shadow);
+  }
+
+  .max2-spyne .spyne-dark-tooltip-title,
+  .spyne-dark-tooltip-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--spyne-tooltip-dark-label-muted);
+  }
+
+  .max2-spyne .spyne-dark-tooltip-list,
+  .spyne-dark-tooltip-list {
+    margin: 0.5rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .max2-spyne .spyne-dark-tooltip-item,
+  .spyne-dark-tooltip-item {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 13px;
+    color: var(--spyne-on-dark-text);
+    text-align: left;
+    min-width: 0;
+  }
+
+  .max2-spyne .spyne-dark-tooltip-item > span:last-child,
+  .spyne-dark-tooltip-item > span:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .max2-spyne .spyne-dark-tooltip-bullet,
+  .spyne-dark-tooltip-bullet {
+    flex-shrink: 0;
+    font-weight: 600;
+    color: var(--spyne-chart-on-dark-1);
+  }
+
+  .max2-spyne .spyne-dark-tooltip-inner-well,
+  .spyne-dark-tooltip-inner-well {
+    border-radius: 9999px;
+    background: var(--spyne-dark-elevated-bg);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .max2-spyne .spyne-dark-tooltip-section-label,
+  .spyne-dark-tooltip-section-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--spyne-tooltip-dark-label-muted);
+  }
+
+  .max2-spyne .spyne-dark-tooltip-meta,
+  .spyne-dark-tooltip-meta {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--spyne-tooltip-dark-label-muted);
+  }
+
+  .max2-spyne .spyne-dark-tooltip-arrow,
+  .spyne-dark-tooltip-arrow {
+    fill: var(--spyne-tooltip-dark-shell-bg);
+  }
+
+  /**
+   * Segmented control — two+ mutually exclusive options (e.g. agent Inbound / Outbound).
+   * Border 8px radius, divider between segments; active = primary soft fill + primary ink.
+   */
+  .max2-spyne .spyne-segmented {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--spyne-border);
+    border-radius: var(--spyne-toolbar-control-radius);
+    background: var(--spyne-surface);
+    overflow: hidden;
+  }
+
+  .max2-spyne .spyne-segmented__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 var(--spyne-toolbar-segment-padding-x);
+    min-height: var(--spyne-toolbar-control-height);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.25;
+    font-family: inherit;
+    border: none;
+    background: transparent;
+    color: var(--spyne-text-secondary);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, font-weight 0.15s ease;
+  }
+
+  .max2-spyne .spyne-segmented__btn:not(:last-child) {
+    border-right: 1px solid var(--spyne-border);
+  }
+
+  .max2-spyne .spyne-segmented__btn[aria-pressed="true"] {
+    background: var(--spyne-primary-soft);
+    color: var(--spyne-primary);
+    font-weight: 600;
+  }
+
+  .max2-spyne .spyne-segmented__btn:focus-visible {
+    outline: 2px solid var(--spyne-primary);
+    outline-offset: 2px;
+    z-index: 1;
+  }
+
+  /** Taller segments + room for leading icons (Studio Merchandising / Lot View toggle). */
+  .max2-spyne .spyne-segmented.spyne-segmented--lg .spyne-segmented__btn {
+    gap: 8px;
+    padding: 0 16px;
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .max2-spyne .spyne-segmented__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--spyne-text-secondary);
+  }
+
+  .max2-spyne .spyne-segmented__dot--live {
+    background: var(--spyne-success);
+  }
+
+  /**
+   * Filter trigger — bordered control for native `<select>` or popover anchor (e.g. date range).
+   * 8px radius, 36px min height, matches segmented row height.
+   */
+  .max2-spyne .spyne-filter-select-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  .max2-spyne .spyne-filter-select {
+    appearance: none;
+    padding-left: 12px;
+    padding-right: 32px;
+    min-height: var(--spyne-toolbar-control-height);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--spyne-text-primary);
+    background: var(--spyne-surface);
+    border: 1px solid var(--spyne-border);
+    border-radius: var(--spyne-toolbar-control-radius);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .max2-spyne .spyne-filter-select:hover {
+    border-color: color-mix(in srgb, var(--spyne-text-primary) 12%, var(--spyne-border));
+  }
+
+  .max2-spyne .spyne-filter-select:focus {
+    outline: none;
+    border-color: var(--spyne-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--spyne-primary) 14%, transparent);
+  }
+
+  .max2-spyne .spyne-filter-select__chevron {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--spyne-text-secondary);
+  }
+
+  /**
+   * Popover / menu anchor — same border + radius as filter select (e.g. Lot holding cost header chip).
+   */
+  .max2-spyne .spyne-toolbar-trigger {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 12px;
+    border: 1px solid var(--spyne-border);
+    border-radius: var(--spyne-toolbar-control-radius);
+    background: var(--spyne-surface);
+    color: var(--spyne-text-primary);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  }
+
+  .max2-spyne .spyne-toolbar-trigger:hover {
+    border-color: color-mix(in srgb, var(--spyne-text-primary) 12%, var(--spyne-border));
+    background: color-mix(in srgb, var(--spyne-text-primary) 3%, var(--spyne-surface));
+  }
+
+  .max2-spyne .spyne-toolbar-trigger[data-state="open"] {
+    border-color: color-mix(in srgb, var(--spyne-primary) 35%, var(--spyne-border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--spyne-primary) 12%, transparent);
+  }
+
+  .max2-spyne [data-slot="input"] {
+    border-radius: 6px;
+    border-color: var(--spyne-border);
+    background: var(--spyne-surface);
+    font-size: 14px;
+    color: var(--spyne-text-primary);
+  }
+
+  .max2-spyne [data-slot="input"]::placeholder {
+    color: var(--spyne-text-secondary);
+  }
+
+  /**
+   * shadcn Select — match toolbar filter control (Sales date dropdown): 8px radius, 36px height, 500 weight.
+   * Overrides trigger `rounded-md` / `h-9` from `components/ui/select.tsx` inside Spyne scope.
+   */
+  .max2-spyne [data-slot="select-trigger"] {
+    border-radius: var(--spyne-toolbar-control-radius) !important;
+    border-color: var(--spyne-border);
+    background: var(--spyne-surface);
+    font-size: 14px;
+    font-weight: 500;
+    min-height: var(--spyne-toolbar-control-height);
+    height: auto !important;
+    box-shadow: none;
+  }
+
+  .max2-spyne [data-slot="select-trigger"]:hover {
+    border-color: color-mix(in srgb, var(--spyne-text-primary) 12%, var(--spyne-border));
+  }
+
+  .max2-spyne [data-slot="select-trigger"]:focus-visible {
+    border-color: var(--spyne-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--spyne-primary) 14%, transparent);
+  }
+
+  .max2-spyne [data-slot="select-content"] {
+    border-radius: 8px;
+    border-color: var(--spyne-border);
+    background: var(--spyne-surface);
+    box-shadow: 0 4px 24px rgb(0 0 0 / 0.06);
+  }
+
+  .max2-spyne [data-slot="select-item"] {
+    font-size: 14px;
+  }
+
+  .max2-spyne [data-slot="dialog-content"] {
+    border-radius: 12px;
+    border-color: var(--spyne-border);
+    background: var(--spyne-surface);
+    box-shadow: 0 10px 40px rgb(0 0 0 / 0.08);
+  }
+
+  .max2-spyne [data-slot="dialog-title"] {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--spyne-text-primary);
+  }
+
+  .max2-spyne [data-slot="dialog-description"] {
+    font-size: 14px;
+    color: var(--spyne-text-secondary);
+  }
+
+  .max2-spyne table {
+    font-size: 14px;
+  }
+
+  .max2-spyne .spyne-btn-primary-lg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 44px;
+    padding-left: 16px;
+    padding-right: 16px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    background: var(--spyne-primary);
+    color: #fff;
+    border: none;
+    transition: background-color 0.15s ease;
+  }
+
+  .max2-spyne .spyne-btn-primary-lg:hover {
+    background: var(--spyne-primary-hover);
+  }
+
+  .max2-spyne .spyne-btn-primary-lg:active {
+    background: var(--spyne-primary-pressed);
+  }
+
+  .max2-spyne .spyne-btn-primary-lg:disabled {
+    background: var(--spyne-disabled-bg);
+    color: var(--spyne-disabled-text);
+    cursor: not-allowed;
+  }
+
+  .max2-spyne .spyne-btn-primary-md {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding-left: 14px;
+    padding-right: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    background: var(--spyne-primary);
+    color: #fff;
+    border: none;
+    transition: background-color 0.15s ease;
+  }
+
+  .max2-spyne .spyne-btn-primary-md:hover {
+    background: var(--spyne-primary-hover);
+  }
+
+  .max2-spyne .spyne-btn-secondary-md {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding-left: 14px;
+    padding-right: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    background: var(--spyne-surface);
+    color: var(--spyne-text-primary);
+    border: 1px solid var(--spyne-border);
+    transition: background-color 0.15s ease;
+  }
+
+  .max2-spyne .spyne-btn-secondary-md:hover {
+    background: #f9fafb;
+  }
+
+  .max2-spyne .spyne-chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border: 1px solid var(--spyne-border);
+    background: #f9fafb;
+    color: var(--spyne-text-primary);
+  }
+
+  .max2-spyne .spyne-chip-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border: 1px solid var(--spyne-border);
+    background: var(--spyne-primary-soft);
+    color: var(--spyne-primary);
+  }
+
+  /**
+   * Design-system chips — pill tags (reference: outline / soft / solid × tone).
+   * Use with `SpyneChip` or classes: `spyne-ds-chip spyne-ds-chip--{outline|soft|solid} spyne-ds-chip--{tone}`.
+   */
+  .max2-spyne .spyne-ds-chip {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    max-width: 100%;
+    border-radius: 9999px;
+    border-width: 1px;
+    border-style: solid;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    padding: 6px 12px;
+    --spyne-ds-chip-tone: var(--spyne-text-secondary);
+    --spyne-ds-chip-ink: var(--spyne-ds-chip-tone);
+    --spyne-ds-chip-on-solid: #ffffff;
+  }
+
+  .max2-spyne .spyne-ds-chip__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: currentcolor;
+  }
+
+  .max2-spyne .spyne-ds-chip__icon > svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .max2-spyne .spyne-ds-chip__icon .material-symbols-outlined {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    line-height: 1;
+  }
+
+  /** Count disc (inventory quick filters) */
+  .max2-spyne .spyne-ds-chip__metric {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--spyne-border);
+    color: var(--spyne-text-secondary);
+  }
+
+  .max2-spyne .spyne-ds-chip--primary.spyne-ds-chip--soft .spyne-ds-chip__metric {
+    background: color-mix(in srgb, var(--spyne-primary) 22%, white);
+    color: var(--spyne-primary);
+  }
+
+  .max2-spyne .spyne-ds-chip--compact {
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.2;
+    padding: 2px 8px;
+    gap: 4px;
+  }
+
+  .max2-spyne .spyne-ds-chip--compact .spyne-ds-chip__icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .max2-spyne .spyne-ds-chip--compact .spyne-ds-chip__icon > svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .max2-spyne .spyne-ds-chip--compact .spyne-ds-chip__icon .material-symbols-outlined {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+  }
+
+  .max2-spyne .spyne-ds-chip--neutral {
+    --spyne-ds-chip-tone: var(--spyne-chip-neutral);
+  }
+
+  .max2-spyne .spyne-ds-chip--charcoal {
+    --spyne-ds-chip-tone: var(--spyne-chip-charcoal);
+  }
+
+  .max2-spyne .spyne-ds-chip--success {
+    --spyne-ds-chip-tone: var(--spyne-success);
+  }
+
+  .max2-spyne .spyne-ds-chip--warning {
+    --spyne-ds-chip-tone: var(--spyne-warning);
+    --spyne-ds-chip-ink: var(--spyne-warning-ink);
+    --spyne-ds-chip-on-solid: #1a1a1a;
+  }
+
+  .max2-spyne .spyne-ds-chip--error {
+    --spyne-ds-chip-tone: var(--spyne-error);
+  }
+
+  .max2-spyne .spyne-ds-chip--info {
+    --spyne-ds-chip-tone: var(--spyne-info);
+  }
+
+  .max2-spyne .spyne-ds-chip--primary {
+    --spyne-ds-chip-tone: var(--spyne-primary);
+  }
+
+  .max2-spyne .spyne-ds-chip--cyan {
+    --spyne-ds-chip-tone: var(--spyne-chip-cyan);
+  }
+
+  .max2-spyne .spyne-ds-chip--pink {
+    --spyne-ds-chip-tone: var(--spyne-chip-pink);
+  }
+
+  .max2-spyne .spyne-ds-chip--orange {
+    --spyne-ds-chip-tone: var(--spyne-chip-orange);
+  }
+
+  .max2-spyne .spyne-ds-chip--crimson {
+    --spyne-ds-chip-tone: var(--spyne-chip-crimson);
+  }
+
+  .max2-spyne .spyne-ds-chip--rose {
+    --spyne-ds-chip-tone: var(--spyne-chip-rose);
+  }
+
+  .max2-spyne .spyne-ds-chip--outline {
+    background: color-mix(in srgb, var(--spyne-ds-chip-tone) 10%, white);
+    color: var(--spyne-ds-chip-ink);
+    border-color: color-mix(in srgb, var(--spyne-ds-chip-tone) 32%, var(--spyne-border));
+  }
+
+  .max2-spyne .spyne-ds-chip--outline.spyne-ds-chip--compact {
+    border-width: 0;
+    border-style: none;
+    border-color: transparent;
+    border-image: none;
+    line-height: 16px;
+  }
+
+  /** Filter bar: surface fill, primary outline + ink (overrides outline tint and compact border reset) */
+  .max2-spyne .spyne-ds-chip--filter-row.spyne-ds-chip--outline {
+    background: var(--spyne-surface);
+    color: var(--spyne-primary);
+    border-color: var(--spyne-primary);
+    --spyne-ds-chip-ink: var(--spyne-primary);
+  }
+
+  .max2-spyne .spyne-ds-chip--filter-row.spyne-ds-chip--outline.spyne-ds-chip--compact {
+    border-width: 1px;
+    border-style: solid;
+    border-color: var(--spyne-primary);
+    padding: 1px 6px;
+    gap: 3px;
+    line-height: 1.2;
+  }
+
+  .max2-spyne .spyne-ds-chip--soft {
+    background: color-mix(in srgb, var(--spyne-ds-chip-tone) 22%, white);
+    color: var(--spyne-ds-chip-ink);
+    border-color: color-mix(in srgb, var(--spyne-ds-chip-tone) 45%, var(--spyne-border));
+  }
+
+  .max2-spyne .spyne-ds-chip--solid {
+    background: var(--spyne-ds-chip-tone);
+    color: var(--spyne-ds-chip-on-solid);
+    border-color: transparent;
+  }
+
+  .max2-spyne button.spyne-ds-chip {
+    cursor: pointer;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .max2-spyne button.spyne-ds-chip:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .max2-spyne button.spyne-ds-chip:focus-visible {
+    outline: 2px solid var(--spyne-primary);
+    outline-offset: 2px;
+  }
+
+  .max2-spyne button.spyne-ds-chip:not(:disabled):hover {
+    filter: brightness(0.97);
+  }
+
+  /**
+   * Line tabs — underline row + hairline separator (Sales tabs, legacy `spyne-inventory-tab` alias).
+   * Strip: `spyne-line-tab-strip`; tab button: `spyne-line-tab` + `spyne-line-tab--active` (or `aria-selected="true"`).
+   */
+  .max2-spyne .spyne-line-tab-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    column-gap: var(--spyne-line-tab-strip-column-gap);
+    row-gap: 4px;
+    border-bottom: 1px solid var(--spyne-border);
+    margin-bottom: var(--spyne-sales-stack-gap);
+  }
+
+  /** In-card tabs — less space before list body (16px) */
+  .max2-spyne .spyne-line-tab-strip--tight {
+    margin-bottom: 1rem;
+  }
+
+  /** Flush to following padded panel (margin handled inside panel) */
+  .max2-spyne .spyne-line-tab-strip--embedded {
+    /* Important: base strip uses `--spyne-sales-stack-gap`; utilities must not win over this */
+    margin-bottom: 0 !important;
+  }
+
+  /** Bleed to card padding (e.g. `p-4` cards): align hairline with card edges */
+  .max2-spyne .spyne-line-tab-strip--bleed {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /** Dense in-card tabs (12px label) */
+  .max2-spyne .spyne-line-tab-strip--compact .spyne-line-tab,
+  .max2-spyne .spyne-line-tab-strip--compact .spyne-inventory-tab {
+    font-size: var(--spyne-line-tab-font-size-compact);
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .max2-spyne .spyne-line-tab,
+  .max2-spyne .spyne-inventory-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spyne-line-tab-gap);
+    padding: 0 var(--spyne-line-tab-padding-x) var(--spyne-line-tab-padding-bottom);
+    margin-bottom: -1px;
+    font-size: var(--spyne-line-tab-font-size);
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--spyne-text-secondary);
+    background: transparent;
+    border: none;
+    border-bottom: var(--spyne-line-tab-indicator-width) solid transparent;
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .max2-spyne .spyne-line-tab:hover,
+  .max2-spyne .spyne-inventory-tab:hover {
+    color: var(--spyne-text-primary);
+  }
+
+  .max2-spyne .spyne-line-tab:focus-visible,
+  .max2-spyne .spyne-inventory-tab:focus-visible {
+    outline: 2px solid var(--spyne-primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+    z-index: 1;
+  }
+
+  .max2-spyne .spyne-line-tab--active,
+  .max2-spyne .spyne-line-tab[aria-selected="true"],
+  .max2-spyne .spyne-inventory-tab--active {
+    font-weight: 600;
+    color: var(--spyne-primary);
+    border-bottom-color: var(--spyne-primary);
+  }
+
+  /** Count / badge on line tab — inactive vs active driven by parent `.spyne-line-tab--active` */
+  .max2-spyne .spyne-line-tab__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: var(--spyne-radius-pill);
+    font-size: 10px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    background: color-mix(in srgb, var(--spyne-success) 14%, white);
+    color: var(--spyne-success);
+  }
+
+  .max2-spyne .spyne-line-tab--active .spyne-line-tab__badge,
+  .max2-spyne .spyne-line-tab[aria-selected="true"] .spyne-line-tab__badge {
+    background: var(--spyne-success);
+    color: #ffffff;
+  }
+
+  /**
+   * Line tab — inline parenthetical count (Studio / Lot inventory vehicle-type row).
+   * Use with `SpyneLineTabInlineCount`; wrap label + count in `spyne-line-tab__label-with-count` so the tab’s flex `gap` does not separate label from `(`.
+   */
+  .max2-spyne .spyne-line-tab__label-with-count {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0;
+    white-space: nowrap;
+  }
+
+  .max2-spyne .spyne-line-tab__count-inline {
+    font-variant-numeric: tabular-nums;
+    font-weight: inherit;
+    color: inherit;
+  }
+
+  /** Inventory list — shortcut chips (label + count disc) */
+  .max2-spyne .spyne-inventory-quick-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.3;
+    padding: 6px 8px 6px 12px;
+    border: 1px solid var(--spyne-border);
+    background-color: #ffffff;
+    color: #4b5563;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  /** Do not use this hover when selected — avoids overriding active border/label */
+  .max2-spyne .spyne-inventory-quick-chip:hover:not(:disabled):not(.spyne-inventory-quick-chip--active) {
+    border-color: color-mix(in srgb, var(--spyne-text-secondary) 22%, var(--spyne-border));
+    color: var(--spyne-text-primary);
+    background-color: #ffffff;
+  }
+
+  /** Selected: white pill only (no tint), lavender border, purple label, purple disc + white count */
+  .max2-spyne .spyne-inventory-quick-chip--active {
+    border-color: color-mix(in srgb, var(--spyne-primary) 42%, #e9e5ff);
+    background-color: #ffffff;
+    color: var(--spyne-primary);
+  }
+
+  .max2-spyne .spyne-inventory-quick-chip--active:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--spyne-primary) 55%, #e9e5ff);
+    color: var(--spyne-primary);
+    background-color: #ffffff;
+  }
+
+  .max2-spyne .spyne-inventory-quick-chip--active:focus-visible {
+    background-color: #ffffff;
+  }
+
+  /** Default count: medium gray circle, white numerals */
+  .max2-spyne .spyne-inventory-quick-chip__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    background: #9ca3af;
+    color: #ffffff;
+  }
+
+  /** Active count: primary fill, white numerals */
+  .max2-spyne .spyne-inventory-quick-chip--active .spyne-inventory-quick-chip__count {
+    background: var(--spyne-primary);
+    color: #ffffff;
+  }
+
+  /** Inventory list header — cycling search placeholder */
+  @keyframes spyne-search-hint-enter {
+    from {
+      opacity: 0;
+      transform: translateY(3px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .max2-spyne .spyne-inventory-search-hint {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 400;
+    color: var(--spyne-text-secondary);
+    animation: spyne-search-hint-enter 0.42s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .max2-spyne .spyne-inventory-search-hint {
+      animation: none;
+    }
+  }
+
+  /**
+   * Spyne checkbox — shadcn / Radix `[data-slot="checkbox"]` inside Max 2 scope.
+   * Unchecked: white surface, 1px `--spyne-border`. Checked: `--spyne-primary` fill, white check (rounded caps).
+   */
+  .max2-spyne [data-slot="checkbox"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: var(--spyne-checkbox-size);
+    height: var(--spyne-checkbox-size);
+    min-width: var(--spyne-checkbox-size);
+    min-height: var(--spyne-checkbox-size);
+    flex-shrink: 0;
+    border-radius: var(--spyne-checkbox-radius);
+    border-width: 1px;
+    border-style: solid;
+    border-color: var(--spyne-border);
+    background-color: var(--spyne-surface);
+    color: #ffffff;
+    box-shadow: none;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .max2-spyne [data-slot="checkbox"]:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--spyne-primary) 35%, var(--spyne-border));
+  }
+
+  .max2-spyne [data-slot="checkbox"][data-state="checked"] {
+    background-color: var(--spyne-primary);
+    border-color: var(--spyne-primary);
+    color: #ffffff;
+  }
+
+  .max2-spyne [data-slot="checkbox"][data-state="checked"]:hover:not(:disabled) {
+    background-color: var(--spyne-primary-hover);
+    border-color: var(--spyne-primary-hover);
+  }
+
+  .max2-spyne [data-slot="checkbox"]:focus-visible {
+    outline: none;
+    border-color: var(--spyne-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--spyne-primary) 14%, transparent);
+  }
+
+  .max2-spyne [data-slot="checkbox"]:disabled {
+    cursor: not-allowed;
+  }
+
+  .max2-spyne [data-slot="checkbox-indicator"] svg {
+    width: var(--spyne-checkbox-check-size);
+    height: var(--spyne-checkbox-check-size);
+  }
+
+  .max2-spyne [data-slot="checkbox-indicator"] svg path {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: var(--spyne-checkbox-check-stroke);
+  }
+
+  /** Inventory filter drawer — accordion + checkbox facets (Studio AI / Lot inventory) */
+  .max2-spyne .spyne-filter-panel-root {
+    max-height: 100dvh;
+  }
+
+  .max2-spyne .spyne-filter-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
+    background: var(--spyne-surface);
+  }
+
+  .max2-spyne .spyne-filter-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    padding: 16px 20px;
+    background: #f3f4f6;
+    border-bottom: 1px solid var(--spyne-border);
+  }
+
+  .max2-spyne .spyne-filter-panel__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--spyne-text-primary);
+  }
+
+  .max2-spyne .spyne-filter-panel__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--spyne-text-secondary);
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .max2-spyne .spyne-filter-panel__close:hover {
+    color: var(--spyne-text-primary);
+    background: color-mix(in srgb, var(--spyne-border) 40%, transparent);
+  }
+
+  .max2-spyne .spyne-filter-panel__body {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .max2-spyne .spyne-filter-section {
+    border-bottom: 1px solid var(--spyne-border);
+  }
+
+  .max2-spyne .spyne-filter-section__trigger {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--spyne-text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: color 0.15s ease;
+  }
+
+  .max2-spyne .spyne-filter-section__trigger:hover {
+    color: var(--spyne-text-primary);
+  }
+
+  .max2-spyne .spyne-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    min-height: 40px;
+    font-size: 14px;
+    color: var(--spyne-text-primary);
+  }
+
+  .max2-spyne .spyne-filter-option__count {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--spyne-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .max2-spyne .spyne-filter-more {
+    display: block;
+    width: 100%;
+    padding: 8px 20px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--spyne-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: opacity 0.15s ease;
+  }
+
+  .max2-spyne .spyne-filter-more:hover {
+    opacity: 0.85;
+  }
+
+  .max2-spyne .spyne-filter-panel__footer {
+    display: flex;
+    flex-shrink: 0;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--spyne-border);
+    background: var(--spyne-surface);
+  }
+
+  /** Primary / brand emphasis — same family as `SpyneChip` primary soft */
+  .max2-spyne .spyne-badge-brand {
+    background: var(--spyne-primary-soft);
+    color: var(--spyne-primary);
+    border-color: color-mix(in srgb, var(--spyne-primary) 35%, var(--spyne-border));
+  }
+
+  .max2-spyne .spyne-badge-success {
+    background: color-mix(in srgb, var(--spyne-success) 14%, white);
+    color: var(--spyne-success);
+    border-color: color-mix(in srgb, var(--spyne-success) 35%, var(--spyne-border));
+  }
+
+  .max2-spyne .spyne-badge-warning {
+    background: color-mix(in srgb, var(--spyne-warning) 35%, white);
+    color: #854d0e;
+    border-color: color-mix(in srgb, var(--spyne-warning) 50%, var(--spyne-border));
+  }
+
+  .max2-spyne .spyne-badge-error {
+    background: color-mix(in srgb, var(--spyne-error) 14%, white);
+    color: var(--spyne-error);
+    border-color: color-mix(in srgb, var(--spyne-error) 35%, var(--spyne-border));
+  }
+
+  /** Legacy sales/console alias — same as `.spyne-badge-error` */
+  .max2-spyne .spyne-badge-danger {
+    background: color-mix(in srgb, var(--spyne-error) 14%, white);
+    color: var(--spyne-error);
+    border-color: color-mix(in srgb, var(--spyne-error) 35%, var(--spyne-border));
+  }
+
+  .max2-spyne .spyne-badge-info {
+    background: color-mix(in srgb, var(--spyne-info) 14%, white);
+    color: #1d4ed8;
+    border-color: color-mix(in srgb, var(--spyne-info) 35%, var(--spyne-border));
+  }
+
+  .max2-spyne .spyne-badge-orange {
+    background: color-mix(in srgb, var(--spyne-chip-orange) 14%, white);
+    color: var(--spyne-chip-orange);
+    border-color: color-mix(in srgb, var(--spyne-chip-orange) 35%, var(--spyne-border));
+  }
+
+  .max2-spyne .spyne-badge-neutral {
+    background: #f3f4f6;
+    color: var(--spyne-text-secondary);
+    border-color: var(--spyne-border);
+  }
+
+  .max2-spyne .spyne-row-selected {
+    background: var(--spyne-primary-soft);
+  }
+
+  .max2-spyne .spyne-row-warn {
+    background: color-mix(in srgb, var(--spyne-warning) 18%, white);
+  }
+
+  /**
+   * Studio Merchandising: instant-media pitch — blue → purple → green at 30% opacity over surface.
+   * Intentional local override (not the default soft row-warn treatment).
+   */
+  .max2-spyne .spyne-merch-pitch-banner--instant {
+    background:
+      linear-gradient(
+        118deg,
+        rgb(125 211 252 / 0.3) 0%,
+        rgb(196 181 253 / 0.3) 42%,
+        rgb(110 231 183 / 0.3) 100%
+      ),
+      var(--spyne-surface);
+    border-color: rgb(70 0 242 / 0.14);
+    box-shadow:
+      0 0 0 1px rgb(70 0 242 / 0.08),
+      0 6px 20px rgb(59 130 246 / 0.08);
+  }
+
+  .max2-spyne .spyne-row-error {
+    background: color-mix(in srgb, var(--spyne-error) 10%, white);
+  }
+
+  .max2-spyne .spyne-row-positive {
+    background: color-mix(in srgb, var(--spyne-success) 10%, white);
+  }
+
+  /**
+   * Lot Action Items suggest banner — anchor + tab pointer (Media Lot overview).
+   * `max2Classes.overviewSuggestBannerAnchor`, `overviewSuggestBannerPointer` in `lib/design-system/max-2.ts`.
+   */
+  .max2-spyne .spyne-overview-suggest-banner__anchor {
+    position: relative;
+  }
+
+  .max2-spyne .spyne-overview-suggest-banner__pointer {
+    pointer-events: none;
+    position: absolute;
+    z-index: 2;
+    height: 9px;
+    width: 18px;
+    top: -8px;
+    clip-path: polygon(50% 0, 0 100%, 100% 100%);
+  }
+
+  .max2-spyne .spyne-kpi-icon {
+    border-radius: 6px;
+    padding: 8px;
+  }
+
+  /**
+   * Insight rows — Studio “Insights” list and compact modal action links.
+   * Light page-tinted surface, no shadow; icon wells use 10% semantic wash + soft border.
+   * Reference: design-system/max-2.md § Insight rows; `spyneComponentClasses.insightRow*` in `lib/design-system/max-2.ts`.
+   */
+  .max2-spyne .spyne-insight-row {
+    border-radius: 8px;
+    border: 1px solid var(--spyne-border);
+    background: color-mix(in srgb, var(--spyne-page-bg) 40%, var(--spyne-surface));
+    box-shadow: none;
+    transition: background-color 0.15s ease;
+  }
+
+  .max2-spyne .spyne-insight-row:hover {
+    background: color-mix(in srgb, var(--spyne-page-bg) 70%, var(--spyne-surface));
+  }
+
+  .max2-spyne button.spyne-insight-row {
+    width: 100%;
+    padding: 14px 16px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .max2-spyne a.spyne-insight-row.spyne-insight-row--compact {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .max2-spyne button.spyne-insight-row:focus-visible,
+  .max2-spyne a.spyne-insight-row:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--spyne-surface),
+      0 0 0 4px color-mix(in srgb, var(--spyne-primary) 20%, transparent);
+  }
+
+  .max2-spyne .spyne-insight-row__body {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid;
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well--compact {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well--warning {
+    border-color: color-mix(in srgb, var(--spyne-warning) 30%, var(--spyne-border));
+    background: color-mix(in srgb, var(--spyne-warning) 10%, var(--spyne-surface));
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well--critical {
+    border-color: color-mix(in srgb, var(--spyne-error) 25%, var(--spyne-border));
+    background: color-mix(in srgb, var(--spyne-error) 10%, var(--spyne-surface));
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well--compact svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well--warning svg {
+    color: var(--spyne-warning-ink);
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well--critical svg {
+    color: var(--spyne-error);
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well--success {
+    border-color: color-mix(in srgb, var(--spyne-success) 30%, var(--spyne-border));
+    background: color-mix(in srgb, var(--spyne-success) 10%, var(--spyne-surface));
+  }
+
+  .max2-spyne .spyne-insight-row__icon-well--success svg {
+    color: var(--spyne-success);
+  }
+
+  .max2-spyne .spyne-insight-row__main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .max2-spyne .spyne-insight-row__title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .max2-spyne .spyne-insight-row__title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.375;
+    color: var(--spyne-text-primary);
+  }
+
+  .max2-spyne .spyne-insight-row__meta {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--spyne-text-secondary);
+  }
+
+  .max2-spyne .spyne-insight-row__chevron {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-top: 4px;
+    align-self: flex-start;
+    color: var(--spyne-text-secondary);
+    opacity: 0.5;
+  }
+
+  /** Action tabs — issue / filter cards (icon → title → “N vehicles →”) */
+  .max2-spyne .spyne-action-tab-strip {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .max2-spyne .spyne-action-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--spyne-border);
+    background: #f9fafb;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .max2-spyne .spyne-action-tab:hover {
+    background: #f3f4f6;
+  }
+
+  .max2-spyne .spyne-action-tab--selected {
+    background: var(--spyne-surface);
+    border-color: var(--spyne-primary);
+  }
+
+  .max2-spyne .spyne-action-tab--selected:hover {
+    background: var(--spyne-surface);
+  }
+
+  .max2-spyne .spyne-action-tab__icon {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    color: var(--spyne-text-secondary);
+  }
+
+  .max2-spyne .spyne-action-tab__icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .max2-spyne .spyne-action-tab--selected .spyne-action-tab__icon {
+    color: var(--spyne-primary);
+  }
+
+  .max2-spyne .spyne-action-tab__title {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--spyne-text-primary);
+  }
+
+  .max2-spyne .spyne-action-tab--selected .spyne-action-tab__title {
+    color: var(--spyne-primary);
+  }
+
+  .max2-spyne .spyne-action-tab__count {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--spyne-error);
+  }
+
+  /* Max 2 sidebar — Spyne active rail (applied from layout utilities) */
+  .max2-nav-active {
+    background: var(--spyne-primary-soft);
+    color: var(--spyne-primary);
+  }
+
+  .max2-nav-child-active {
+    color: var(--spyne-primary);
+    background: var(--spyne-primary-soft);
+  }
+
+  /* Max 2 sidebar rail — collapsed icon + label stack (`components/max-2/max2-sidebar-rail.tsx`) */
+  .spyne-sidebar-rail__divider {
+    margin: 8px 10px;
+    border: none;
+    border-top: 1px solid var(--spyne-border);
+  }
+
+  .spyne-sidebar-rail__link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    border-radius: 8px;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .spyne-sidebar-rail__link--collapsed {
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 4px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .spyne-sidebar-rail__link--expanded {
+    flex-direction: row;
+    gap: 12px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.25;
+  }
+
+  .spyne-sidebar-rail__label-collapsed {
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.15;
+    text-align: center;
+    max-width: 4.5rem;
+    width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    color: inherit;
+  }
+
+  /** Nested items under an expanded parent (Studio AI, Lot View) — design-system/max-2.md */
+  .spyne-sidebar-rail__child-group {
+    margin-top: 4px;
+    margin-left: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-left: 12px;
+    border-left: 1px solid var(--spyne-border);
+  }
+
+  .spyne-sidebar-rail__child-link {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-decoration: none;
+    color: var(--spyne-text-secondary);
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .spyne-sidebar-rail__child-link:hover {
+    background: color-mix(in srgb, var(--spyne-primary) 14%, transparent);
+    color: var(--spyne-text-primary);
+  }
+
+  .spyne-sidebar-rail__child-link:focus-visible {
+    outline: 2px solid var(--spyne-primary);
+    outline-offset: 2px;
+  }
+
+  .spyne-sidebar-rail__child-link--active {
+    font-weight: 600;
+    color: var(--spyne-primary);
+    background: var(--spyne-primary-soft);
+  }
+
+  .spyne-sidebar-rail__link:focus-visible {
+    outline: 2px solid var(--spyne-primary);
+    outline-offset: 2px;
+    z-index: 1;
+  }
+
+  /* Layout Classes */
+  .attio-container {
+    @apply max-w-7xl mx-auto px-6;
+  }
+  
+  .attio-page-header {
+    @apply py-8 pb-6 border-b border-border mb-8;
+  }
+  
+  .attio-section {
+    @apply mb-12;
+  }
+  
+  /* Line clamp utilities */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Hidden scrollbar utility */
+
+}
+
+/* AI streaming cursor blink */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 0.7s step-end infinite;
+}
+
+/* AI thinking ring pulse */
+@keyframes think-ring {
+  0% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.15); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.animate-think-ring {
+  animation: think-ring 1.5s ease-out infinite;
+}
+
+/* AI shimmer gradient sweep */
+@keyframes shimmer-sweep {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer-sweep 3s linear infinite;
+}
+
+/* Follow-up chip stagger entrance */
+@keyframes chip-enter {
+  0% { opacity: 0; transform: translateY(8px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-chip-enter {
+  animation: chip-enter 0.35s ease-out both;
+}
+
+/* Button shine sweep — translucent white sweep across interactive buttons */
+@keyframes shimmer-btn {
+  0% { transform: translateX(-150%) skewX(-15deg); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(250%) skewX(-15deg); opacity: 0; }
+}
+
+.animate-shimmer-btn {
+  animation: shimmer-btn 2.8s ease-in-out infinite;
+}
+
+/* AI summary typewriter glow */
+@keyframes ai-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(70, 0, 242, 0); }
+  50% { box-shadow: 0 0 20px 2px rgba(70, 0, 242, 0.08); }
+}
+
+.animate-ai-glow {
+  animation: ai-glow 3s ease-in-out infinite;
+}
+/* ============================================================
+   Action Items revamp (v2) · token + utility additions
+   ============================================================
+   Scoped naming (brand-purple-*, surface-*, status-*, dept-*, text-*, border-*)
+   is distinct from the rest of the console's tokens — these are additive and
+   do not override any existing class. See PROTOTYPES.md for source repo.
+   ============================================================ */
+@theme {
+  /* Brand — operator accent (deep blue, NOT Spyne corporate purple) */
+  --color-brand-purple: #1d4ed8;
+  --color-brand-purple-hover: #1e40af;
+  --color-brand-purple-soft: #eff6fff2;
+  --color-brand-purple-border: #dbe5fc;
+
+  /* Dept intent colors */
+  --color-dept-sales: #1d4ed8;
+  --color-dept-sales-soft: #eff6ff;
+  --color-dept-service: #16a34a;
+  --color-dept-service-soft: #f0fdf4;
+  --color-dept-both: #525252;
+  --color-dept-both-soft: #f5f5f5;
+  --color-dept-compliance: #dc2626;
+  --color-dept-compliance-soft: #fef2f2;
+
+  /* Semantic status accents */
+  --color-status-past: #dc2626;
+  --color-status-past-soft: #fef2f2;
+  --color-status-warning: #d97706;
+  --color-status-warning-soft: #fffbeb;
+  --color-status-warning-ink: #92400e;
+  --color-status-ok: #16a34a;
+  --color-status-ok-soft: #f0fdf4;
+  --color-status-neutral: #525252;
+  --color-status-neutral-soft: #f5f5f5;
+
+  /* Surfaces — warmer off-white than the rest of the console */
+  --color-surface-background: #fafafa;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f5f5f5;
+  --color-surface-muted: #f5f5f5;
+
+  /* Text */
+  --color-text-primary: #0a0a0a;
+  --color-text-secondary: #525252;
+  --color-text-tertiary: #737373;
+  --color-text-muted: #a3a3a3;
+
+  /* Borders */
+  --color-border-subtle: #e5e5e5;
+  --color-border-muted: #efefef;
+  --color-border-strong: #d4d4d4;
+  --color-border-accent: #1d4ed8;
+}
+
+/* Typography classes — console-revamp/tokens.md type scale */
+.action-items-v2-scope .text-display {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.action-items-v2-scope .text-page-title {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 36px;
+  letter-spacing: -0.01em;
+}
+.action-items-v2-scope .text-page-subtitle {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 22px;
+}
+.action-items-v2-scope .text-section-h2 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+  letter-spacing: -0.005em;
+}
+.action-items-v2-scope .text-section-desc {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+.action-items-v2-scope .text-card-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+.action-items-v2-scope .text-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.action-items-v2-scope .text-body {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.action-items-v2-scope .text-list-item-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.action-items-v2-scope .text-list-item-rationale {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+}
+.action-items-v2-scope .text-delta {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.action-items-v2-scope .text-meta {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+.action-items-v2-scope .text-badge {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.action-items-v2-scope .text-nav-item {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+.action-items-v2-scope .text-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.action-items-v2-scope .text-meta-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Tabular numerals — counts, times, IDs */
+.action-items-v2-scope .tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Single-line ellipsis */
+.action-items-v2-scope .truncate-1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Thin scrollbar — used on the scrollable pending list */
+.action-items-v2-scope .scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.action-items-v2-scope .scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.action-items-v2-scope .scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-border-subtle);
+  border-radius: 9999px;
+}
+.action-items-v2-scope .scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+}
+
+/* Pulsing dot for past-SLA tile + rows */
+.action-items-v2-scope .pulse-dot {
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+  border-radius: 9999px;
+  background: var(--color-status-past);
+  box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+  animation: action-items-v2-pulse-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes action-items-v2-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+  70%  { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+/* ============================================================
+   Settings screen tokens (dealer-onboarding visual fidelity)
+   Source: dealer-onboarding/vendor/design-system/tailwind.cjs
+   ============================================================ */
+@theme {
+  /* black-* (text + borders) */
+  --color-black-dark: #101828;
+  --color-black-80: rgba(0, 0, 0, 0.8);
+  --color-black-60: rgba(0, 0, 0, 0.6);
+  --color-black-40: rgba(0, 0, 0, 0.4);
+  --color-black-20: rgba(0, 0, 0, 0.2);
+  --color-black-12: rgba(0, 0, 0, 0.12);
+  --color-black-10: rgba(0, 0, 0, 0.1);
+  --color-black-8: rgba(0, 0, 0, 0.08);
+  --color-black-5: rgba(0, 0, 0, 0.05);
+  --color-black-4: rgba(0, 0, 0, 0.04);
+
+  /* gray-* (surfaces) */
+  --color-gray-lighter: #f8f9fc;
+  --color-gray-lightest: #f2f4f7;
+
+  /* blue-* (accent / link / selected) */
+  --color-blue-light: #4600f2;
+  --color-blue-lighter: #eef4ff;
+  --color-blue-8: rgba(70, 0, 242, 0.08);
+  --color-blue-4: rgba(70, 0, 242, 0.04);
+
+  /* status colors */
+  --color-green-do: #039855;
+  --color-green-lighter: #ecfdf3;
+  --color-red-do: #c31812;
+  --color-red-lightest: #fef3f2;
+  --color-yellow-soft: rgba(255, 250, 235, 0.8);
+}
+
+/* ── Appointments view animations ── */
+@keyframes drawer-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-drawer-in  { animation: drawer-in  200ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-overlay-in { animation: overlay-in 160ms ease both; }
+.animate-pop-in     { animation: pop-in     140ms cubic-bezier(0.16, 1, 0.3, 1) both; }

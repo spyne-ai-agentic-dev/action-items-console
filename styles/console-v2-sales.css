@@ -1,0 +1,529 @@
+/**
+ * Sales (Console V2) — legacy component classes scoped under `.console-v2-sales-root`.
+ * Colors, radii, and typography align with design-system/max-2.md; legacy `--spyne-brand*` names
+ * map to canonical `:root` Spyne tokens from app/globals.css.
+ */
+
+.console-v2-sales-root {
+  /* Legacy names → Spyne Max 2 tokens */
+  --spyne-brand: var(--spyne-primary);
+  --spyne-brand-hover: var(--spyne-primary-hover);
+  --spyne-brand-subtle: var(--spyne-primary-soft);
+  --spyne-brand-muted: color-mix(in srgb, var(--spyne-primary) 32%, var(--spyne-border));
+  --spyne-brand-dark: var(--spyne-primary-pressed);
+  --spyne-brand-on: #ffffff;
+
+  --spyne-text-muted: var(--spyne-text-secondary);
+
+  --spyne-bg: var(--spyne-page-bg);
+  --spyne-surface-hover: color-mix(in srgb, var(--spyne-text-primary) 4%, var(--spyne-surface));
+
+  --spyne-border-strong: color-mix(in srgb, var(--spyne-text-primary) 14%, var(--spyne-border));
+
+  --spyne-success-subtle: color-mix(in srgb, var(--spyne-success) 14%, #ffffff);
+  --spyne-success-muted: color-mix(in srgb, var(--spyne-success) 40%, #ffffff);
+  --spyne-success-text: var(--spyne-success);
+
+  --spyne-warning-subtle: color-mix(in srgb, var(--spyne-warning) 35%, #ffffff);
+  --spyne-warning-muted: color-mix(in srgb, var(--spyne-warning) 55%, #ffffff);
+  --spyne-warning-text: var(--spyne-warning-ink);
+
+  --spyne-danger: var(--spyne-error);
+  --spyne-danger-subtle: color-mix(in srgb, var(--spyne-error) 12%, #ffffff);
+  --spyne-danger-muted: color-mix(in srgb, var(--spyne-error) 38%, #ffffff);
+  --spyne-danger-text: var(--spyne-error);
+
+  --spyne-info-subtle: color-mix(in srgb, var(--spyne-info) 12%, #ffffff);
+  --spyne-info-muted: color-mix(in srgb, var(--spyne-info) 38%, #ffffff);
+  --spyne-info-text: var(--spyne-info);
+
+  --spyne-card-radius: 12px;
+
+  --spyne-radius-sm: 4px;
+  --spyne-radius-md: 6px;
+  /** Large radius — aligned with Studio / Lot cards (`:root` `--spyne-card-radius`) */
+  --spyne-radius-lg: var(--spyne-card-radius);
+  --spyne-radius-xl: 12px;
+  --spyne-radius-pill: 9999px;
+
+  /** Default sm shadow — card surfaces use `--spyne-card-shadow` on `.spyne-card` */
+  --spyne-shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
+  --spyne-shadow-md: 0 4px 12px rgb(15 23 42 / 0.08);
+  --spyne-shadow-lg: 0 8px 24px rgb(15 23 42 / 0.1);
+  --spyne-shadow-brand: 0 4px 16px color-mix(in srgb, var(--spyne-primary) 22%, transparent);
+
+  --spyne-duration-fast: 150ms;
+  --spyne-duration-base: 250ms;
+  --spyne-duration-slow: 350ms;
+  --spyne-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --spyne-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: var(--spyne-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.console-v2-sales-root ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.console-v2-sales-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.console-v2-sales-root ::-webkit-scrollbar-thumb {
+  background: var(--spyne-border-strong);
+  border-radius: 3px;
+}
+.console-v2-sales-root ::-webkit-scrollbar-thumb:hover {
+  background: var(--spyne-text-secondary);
+}
+
+/* ─── Typography (matches .max2-spyne page scale where applicable) ─── */
+.console-v2-sales-root .spyne-display {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.console-v2-sales-root .spyne-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+.console-v2-sales-root .spyne-heading {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+.console-v2-sales-root .spyne-subheading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--spyne-text-secondary);
+  line-height: 1.4;
+}
+.console-v2-sales-root .spyne-body {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.console-v2-sales-root .spyne-body-sm {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.console-v2-sales-root .spyne-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.console-v2-sales-root .spyne-caption {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.console-v2-sales-root .spyne-number {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/* ─── Card Components (match `.max2-spyne [data-slot="card"]` — see `:root` `--spyne-card-*`) ─ */
+.console-v2-sales-root .spyne-card {
+  background: var(--spyne-card-bg);
+  border: 1px solid var(--spyne-card-border);
+  border-radius: var(--spyne-card-radius);
+  box-shadow: var(--spyne-card-shadow);
+}
+
+.console-v2-sales-root .spyne-card-interactive {
+  background: var(--spyne-card-bg);
+  border: 1px solid var(--spyne-card-border);
+  border-radius: var(--spyne-card-radius);
+  box-shadow: var(--spyne-card-shadow);
+  cursor: pointer;
+  transition:
+    box-shadow var(--spyne-duration-base) var(--spyne-ease-out),
+    border-color var(--spyne-duration-base) var(--spyne-ease-out),
+    transform var(--spyne-duration-base) var(--spyne-ease-out);
+}
+.console-v2-sales-root .spyne-card-interactive:hover {
+  box-shadow: var(--spyne-shadow-md);
+  border-color: var(--spyne-border-strong);
+  transform: translateY(-1px);
+}
+.console-v2-sales-root .spyne-card-interactive:active {
+  transform: scale(0.99);
+  box-shadow: var(--spyne-card-shadow);
+}
+
+/**
+ * In-card section titles — same as shadcn `CardTitle` / `.spyne-card-title` (14px / 600), not page `.spyne-heading` (16px).
+ */
+.console-v2-sales-root .spyne-card .spyne-heading,
+.console-v2-sales-root .spyne-card-interactive .spyne-heading {
+  font-size: var(--spyne-card-title-font-size);
+  font-weight: var(--spyne-card-title-font-weight);
+  line-height: var(--spyne-card-title-line-height);
+  letter-spacing: normal;
+  color: var(--spyne-card-title-color);
+}
+
+.console-v2-sales-root .spyne-card-title {
+  font-size: var(--spyne-card-title-font-size);
+  font-weight: var(--spyne-card-title-font-weight);
+  line-height: var(--spyne-card-title-line-height);
+  color: var(--spyne-card-title-color);
+}
+
+.console-v2-sales-root .active-action-card {
+  border-color: var(--spyne-brand) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--spyne-primary) 14%, transparent) !important;
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────────── */
+.console-v2-sales-root .spyne-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--spyne-brand);
+  color: var(--spyne-brand-on);
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--spyne-shadow-brand);
+  transition:
+    background var(--spyne-duration-fast) var(--spyne-ease-out),
+    box-shadow var(--spyne-duration-fast) var(--spyne-ease-out),
+    transform var(--spyne-duration-fast) var(--spyne-ease-out);
+}
+.console-v2-sales-root .spyne-btn-primary:hover {
+  background: var(--spyne-brand-hover);
+  box-shadow: var(--spyne-shadow-md);
+  transform: translateY(-1px);
+}
+.console-v2-sales-root .spyne-btn-primary:active {
+  transform: scale(0.97);
+  box-shadow: var(--spyne-shadow-sm);
+}
+
+.console-v2-sales-root .spyne-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--spyne-surface);
+  color: var(--spyne-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid var(--spyne-border);
+  cursor: pointer;
+  transition:
+    background var(--spyne-duration-fast) var(--spyne-ease-out),
+    border-color var(--spyne-duration-fast) var(--spyne-ease-out),
+    transform var(--spyne-duration-fast) var(--spyne-ease-out);
+}
+.console-v2-sales-root .spyne-btn-secondary:hover {
+  background: var(--spyne-surface-hover);
+  border-color: var(--spyne-border-strong);
+}
+.console-v2-sales-root .spyne-btn-secondary:active {
+  transform: scale(0.97);
+}
+
+.console-v2-sales-root .spyne-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--spyne-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition:
+    background var(--spyne-duration-fast) var(--spyne-ease-out),
+    color var(--spyne-duration-fast) var(--spyne-ease-out);
+}
+.console-v2-sales-root .spyne-btn-ghost:hover {
+  background: var(--spyne-surface-hover);
+  color: var(--spyne-text-primary);
+}
+
+/* ─── Badges (shape + type — semantic fills from `.max2-spyne .spyne-badge-*` in globals.css) ─ */
+.console-v2-sales-root .spyne-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--spyne-radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+/* ─── Filter Pills ──────────────────────────────────────────────────── */
+.console-v2-sales-root .spyne-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--spyne-radius-pill);
+  background: transparent;
+  color: var(--spyne-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--spyne-border);
+  cursor: pointer;
+  transition:
+    background var(--spyne-duration-fast) var(--spyne-ease-out),
+    color var(--spyne-duration-fast) var(--spyne-ease-out),
+    border-color var(--spyne-duration-fast) var(--spyne-ease-out);
+  white-space: nowrap;
+}
+.console-v2-sales-root .spyne-pill:hover {
+  color: var(--spyne-text-primary);
+  border-color: var(--spyne-border-strong);
+}
+.console-v2-sales-root .spyne-pill-active {
+  background: var(--spyne-brand-subtle);
+  color: var(--spyne-brand);
+  border-color: var(--spyne-brand-muted);
+}
+
+/* ─── Input ─────────────────────────────────────────────────────────── */
+.console-v2-sales-root .spyne-input {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--spyne-radius-lg);
+  background: var(--spyne-surface);
+  color: var(--spyne-text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid var(--spyne-border);
+  outline: none;
+  transition:
+    border-color var(--spyne-duration-fast) var(--spyne-ease-out),
+    box-shadow var(--spyne-duration-fast) var(--spyne-ease-out);
+}
+.console-v2-sales-root .spyne-input:focus {
+  border-color: var(--spyne-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--spyne-primary) 14%, transparent);
+}
+
+/* ─── Focus-visible rings (accessibility — every interactive surface) ──── */
+/* Soft 3px brand ring for bordered/ghost controls (matches the input ring). */
+.console-v2-sales-root .spyne-btn-secondary:focus-visible,
+.console-v2-sales-root .spyne-btn-ghost:focus-visible,
+.console-v2-sales-root .spyne-pill:focus-visible,
+.console-v2-sales-root .spyne-focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--spyne-primary) 14%, transparent);
+}
+/* Primary CTA needs a higher-contrast ring (white gap + solid brand) so it
+   reads against its own brand fill; keep the resting brand shadow underneath. */
+.console-v2-sales-root .spyne-btn-primary:focus-visible {
+  outline: none;
+  box-shadow: var(--spyne-shadow-brand), 0 0 0 2px var(--spyne-surface), 0 0 0 4px var(--spyne-primary);
+}
+
+/* ─── Floating layers (modals, popovers, drawers) — premium stacked shadow ─ */
+/* Static cards stay near-flat; only TRUE floats earn this brand-tinted depth. */
+.console-v2-sales-root .spyne-float,
+.spyne-float {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 8px 24px rgba(15, 23, 42, 0.1),
+    0 24px 60px rgba(70, 0, 242, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* ─── Divider ───────────────────────────────────────────────────────── */
+.console-v2-sales-root .spyne-divider {
+  height: 1px;
+  background: var(--spyne-border);
+}
+
+/* ─── Skeleton ──────────────────────────────────────────────────────── */
+.console-v2-sales-root .spyne-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--spyne-border) 25%,
+    var(--spyne-surface-hover) 50%,
+    var(--spyne-border) 75%
+  );
+  background-size: 200% 100%;
+  animation: spyne-shimmer 1.6s linear infinite;
+  border-radius: var(--spyne-radius-sm);
+}
+
+/* ─── Animations ────────────────────────────────────────────────────── */
+@keyframes spyne-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@keyframes spyne-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes spyne-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes spyne-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes spyne-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.console-v2-sales-root .spyne-animate-fade-in {
+  animation: spyne-fade-in var(--spyne-duration-base) var(--spyne-ease-out) both;
+}
+.console-v2-sales-root .spyne-animate-slide-up {
+  animation: spyne-slide-up var(--spyne-duration-slow) var(--spyne-ease-out) both;
+}
+.console-v2-sales-root .spyne-animate-scale-in {
+  animation: spyne-scale-in var(--spyne-duration-base) var(--spyne-ease-spring) both;
+}
+
+/* Staggered list entry */
+.console-v2-sales-root .spyne-stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.console-v2-sales-root .spyne-stagger > *:nth-child(2) {
+  animation-delay: 50ms;
+}
+.console-v2-sales-root .spyne-stagger > *:nth-child(3) {
+  animation-delay: 100ms;
+}
+.console-v2-sales-root .spyne-stagger > *:nth-child(4) {
+  animation-delay: 150ms;
+}
+.console-v2-sales-root .spyne-stagger > *:nth-child(5) {
+  animation-delay: 200ms;
+}
+
+/* ─── Reduced Motion ────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .console-v2-sales-root *,
+  .console-v2-sales-root *::before,
+  .console-v2-sales-root *::after,
+  #tour-root *,
+  #tour-root *::before,
+  #tour-root *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── Guided tour + Apple-like motion (global: the tour portals to body) ─ */
+@keyframes tour-cutout-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes tour-ring-pulse {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55), inset 0 0 0 1.5px rgba(70, 0, 242, 0.30); }
+  50%      { box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55), inset 0 0 0 1.5px rgba(70, 0, 242, 0.85); }
+}
+@keyframes tour-nudge {
+  0% { transform: translateX(0); } 25% { transform: translateX(-5px); }
+  60% { transform: translateX(3px); } 100% { transform: translateX(0); }
+}
+@keyframes tour-pop-in {
+  0% { opacity: 0; transform: scale(0.94) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes spyne-digit-pop {
+  0% { transform: translateY(4px); opacity: 0.4; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes spyne-pop-in {
+  0% { transform: scale(0.55); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes spyne-scan-sweep {
+  0% { transform: translateY(-100%); opacity: 0; }
+  8% { opacity: 1; } 92% { opacity: 1; }
+  100% { transform: translateY(120%); opacity: 0; }
+}
+
+/* In-page helpers (scoped) */
+.console-v2-sales-root .spyne-scan-host { position: relative; overflow: hidden; }
+.console-v2-sales-root .spyne-scan-sweep {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(70, 0, 242, 0.12), transparent);
+  animation: spyne-scan-sweep 1.8s var(--spyne-ease-out) infinite;
+}
+.console-v2-sales-root .spyne-pop-in { animation: spyne-pop-in 500ms var(--spyne-ease-spring) both; }
+.console-v2-sales-root .spyne-digit-pop { animation: spyne-digit-pop 320ms var(--spyne-ease-out); }
+
+/* ─── Test-call waveform (pure CSS — no render-time clock) ─────────────── */
+@keyframes spyne-waveform {
+  0%   { transform: scaleY(0.3); }
+  100% { transform: scaleY(1); }
+}
+.console-v2-sales-root .spyne-waveform-bar {
+  transform-origin: bottom;
+  animation: spyne-waveform 0.6s var(--spyne-ease-out) infinite alternate;
+}
+
+/* Mute the demo stepper while the guided tour is driving the stage. */
+body.tour-active [data-tour-suppress] {
+  opacity: 0.25;
+  pointer-events: none;
+  filter: saturate(0.6);
+  transition: opacity 200ms var(--spyne-ease-out);
+}
