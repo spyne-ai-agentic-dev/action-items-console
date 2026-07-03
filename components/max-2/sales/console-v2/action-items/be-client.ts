@@ -69,10 +69,13 @@ export async function fetchActionItems(): Promise<ActionItem[] | null> {
  * LOCAL/DEV: fetch via the same-origin server proxy (`/api/action-items`) — no CORS, token
  * stays server-side (.env.local). Used by the embed when no token is present in the URL.
  */
-export async function fetchActionItemsViaProxy(enterpriseId?: string, teamId?: string): Promise<ActionItem[]> {
+export async function fetchActionItemsViaProxy(enterpriseId?: string, teamId?: string, department?: string): Promise<ActionItem[]> {
   const url = beUrl("/api/action-items")
   if (enterpriseId) url.searchParams.set("enterpriseId", enterpriseId)
   if (teamId) url.searchParams.set("teamId", teamId)
+  // Department carried for the merge-target contract; the action-items BE has no department field,
+  // so the proxy doesn't forward it and the queue is filtered client-side (intent→dept).
+  if (department && department !== "all") url.searchParams.set("department", department)
   // Department NOT sent — action items have no department field server-side; filtered client-side.
   const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" })
   if (!res.ok) throw new Error(`proxy /api/action-items → ${res.status}`)

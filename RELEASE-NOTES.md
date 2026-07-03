@@ -1,104 +1,107 @@
 # Action Items Console — Standalone (iframe + BE)
 
 A self-contained Next.js app that renders the **Action Items** queue as an **iframe target**, with
-**all scope driven from the URL** and its own **backend proxies** (bearer token stays server-side).
-Extracted from `spyne-console` into a focused, deployable codebase — no monorepo shell/cruft.
+its own **backend proxies** (bearer token stays server-side). Aligned to the converse-ai merge
+contract: **snake_case scope params**, a **Sales/Service department toggle**, and **env derived
+from the backend base URL**.
 
 ---
 
-## 1. URL contract (the whole scope comes from the query)
+## 1. URL contract
 
 ```
-https://<host>/?env=<uat|prod>&enterpriseId=<id>&teamId=<id>&department=<all|sales|service>
+https://<host>/?enterprise_id=<id>&team_id=<id>
+   optional: &department=sales|service   (also set by the in-app toggle)
+   optional: &userId=<id>&userEmail=<email>   (acting BDC, recorded on writes)
 ```
 
 | Param | Required | Meaning |
 |---|---|---|
-| `env` | no (default `prod`) | Which backend to hit — `uat` → `uat-api.spyne.xyz`, `prod` → `api.spyne.ai`. Picks creds server-side. |
-| `enterpriseId` | **yes** | Dealer enterprise to load. |
-| `teamId` | **yes** | Team/rooftop to load. |
-| `department` | no (default `all`) | Scope to `sales` / `service` (or `all`). |
+| `enterprise_id` | **yes** | Dealer enterprise to load *(camelCase `enterpriseId` also accepted)*. |
+| `team_id` | **yes** | Team/rooftop to load *(camelCase `teamId` also accepted)*. |
+| `department` | no (default `sales`) | Initial department; the **Sales / Service toggle** drives it after load. |
 | `userId`, `userEmail` | no | Acting BDC — recorded as resolver/assignee on writes. |
 
-- Change any param → the app re-fetches for the new scope (the console remounts).
-- Opened with **no `enterpriseId`** (bare localhost), a slim helper builds the URL for you — the URL stays the single source of truth.
-- Embedded (enterpriseId present) → renders chrome-free, ready for an `<iframe src=…>`.
-
-**Examples**
-```
-/?env=uat&enterpriseId=858b283d5&teamId=cf4a30d7f3&department=sales
-/?env=prod&enterpriseId=7d06f7427&teamId=9923577d07
-```
+**Env is NOT in the URL.** It's derived server-side from the backend base URL (below).
 
 ---
 
-## 2. Backend proxies (same-origin, no CORS, token server-side)
+## 2. Environment (server-derived, converse-ai `getIframeEnv` contract)
 
-All live calls go through this app's own `/api/*` routes, which attach the bearer for the requested
-`env` and forward to `conversational-ai-backend`. The browser never sees the token.
+`lib/be-backend.ts → getIframeEnv()` reads `process.env.APP_BACKEND_BASEURL` (or `BACKEND_BASEURL`):
 
-| Route | Upstream | Purpose |
-|---|---|---|
-| `GET /api/action-items` | `/conversation/action-items` | queue (scoped by ent/team) |
-| `GET /api/call-report` | `/conversation/vapi/end-call-report-by-id` | call detail + transcript |
-| `GET /api/call-recording` | (resolves report → streams S3) | audio, same-origin (fixes CORS) |
-| `GET /api/conversations` | `/conversation/...` | SMS / conversation browse |
-| `GET /api/users` | user list | assignable BDCs |
-| `GET /api/intent-catalog`, `/api/extraction-config`, `/api/intent-config` | intent config | live taxonomy + per-rooftop SLA (UAT) |
-| `POST /api/action-items/resolve` → PUT `mark-resolved` | resolve | write |
-| `POST /api/action-items/incorrect` → PUT `mark-incorrect` | flag incorrect (+reclassify via note) | write |
-| `PATCH /api/assign` | assignment | assign to a BDC | 
-| `PUT /api/intent-config` | dealer-intent-config | per-rooftop SLA | 
+| Base URL contains | env |
+|---|---|
+| `uat-api.spyne.xyz` | `uat` |
+| `beta-api.spyne.xyz` | `stag` |
+| `api.spyne.ai` | `prod` |
 
-Env resolution lives in [`lib/be-backend.ts`](lib/be-backend.ts): `?env=` → `UAT_*` / `PROD_*` / `STAG_*`
-creds, each field falling back to `PROD_*`.
+One backend base + one bearer powers the deployment:
+```
+APP_BACKEND_BASEURL = https://uat-api.spyne.xyz     # → env = uat
+AI_BEARER_TOKEN     = <bearer for that backend>
+ENTERPRISE_ID / TEAM_ID = optional defaults
+```
+*(Legacy per-env vars — `UAT_AI_BEARER_TOKEN`, `PROD_AI_API_BASE_URL`, … — are still honored as a fallback, keyed by the derived env.)*
 
 ---
 
-## 3. Setup & run
+## 3. Department toggle
+
+- **Sales | Service** segmented toggle, top-right. **Default: Sales.**
+- Switching → **shows a loading state → re-fetches → renders that department's view.**
+- The action-items backend has no department field, so the queue is filtered **client-side**
+  (intent → department); the `department` param is still carried to the proxy for the merge target
+  (which can forward it server-side if its API supports it).
+
+---
+
+## 4. Backend proxies (same-origin, no CORS, token server-side)
+
+`GET /api/action-items` · `/api/call-report` · `/api/call-recording` (streams audio) ·
+`/api/conversations` · `/api/users` · `/api/intent-catalog` · `/api/extraction-config` ·
+`/api/intent-config` · `POST /api/action-items/resolve` · `/api/action-items/incorrect` ·
+`PATCH /api/assign` · `PUT /api/intent-config`. All attach the bearer for the derived env and
+forward to `conversational-ai-backend`.
+
+---
+
+## 5. Setup & run
 
 ```bash
-cp .env.example .env.local     # fill in PROD_/UAT_ base URLs + bearer tokens
+cp .env.example .env.local     # set APP_BACKEND_BASEURL + AI_BEARER_TOKEN
 npm install
-npm run dev                    # http://localhost:3000/?env=uat&enterpriseId=…&teamId=…
+npm run dev                    # http://localhost:3000/?enterprise_id=…&team_id=…
 ```
-
-- Node ≥ 18.17. Next 16 (App Router) · React 19 · Tailwind v4.
-- `next.config.mjs` keeps `ignoreBuildErrors` / `ignoreDuringBuilds` on (deploy safety, matching the source).
+Node ≥ 18.17 · Next 16 (App Router) · React 19 · Tailwind v4.
 
 ---
 
-## 4. Features (inherited from the console)
+## 6. Deploy (Vercel)
 
-- Customer-grouped queue, SLA-burn sort, metric tiles + quick filters, department filter.
-- Source drawer: call transcript + **waveform audio** (streamed via proxy), SMS "Conversation" view,
-  and an evidence excerpt ("what Vini captured") when no full report exists — customer verbatim vs
-  Vini's rationale shown separately (never AI reasoning mislabeled as a spoken agent line).
-- Write-back: **Resolve** (type + note; resolver becomes assignee), **Flag Incorrect** with
-  **reclassify** (corrected intent changes the tag; carried in the `note` the DTO accepts),
-  **Assign**, per-rooftop **SLA** edit.
-- **Resolved** tab filters: search · resolution type · intent · resolved-by · created/resolved date · Past-SLA.
-- **Resolved / Incorrect** detail: full record + **Listen / Transcript** source links.
+Set project env vars, then **redeploy** (Vercel injects env only into new builds):
 
----
+| Name | Example |
+|---|---|
+| `APP_BACKEND_BASEURL` | `https://uat-api.spyne.xyz` *(defines env)* |
+| `AI_BEARER_TOKEN` | *(bearer for that backend)* |
+| `ENTERPRISE_ID` / `TEAM_ID` | *(optional default rooftop)* |
 
-## 5. Notes / limitations
-
-- Intent-catalog / extraction-config / dealer-intent-config are **UAT-only** today (404 on prod) —
-  handled gracefully; taxonomy/SLA features light up on prod once the backend promotes them.
-- Resolved / Incorrect tabs show items acted on **in-session** (the queue fetch requests pending
-  items); historical load is a follow-up.
-- `mark-incorrect` currently sends `isComplete:true` — confirm with backend whether flagged items
-  should be bucketed distinctly from completed.
-
----
-
-## 6. Deploy
-
-Standard Next app. Set the `PROD_*` / `UAT_*` env vars in the host (e.g. Vercel project env), then
-embed:
-
+Embed:
 ```html
-<iframe src="https://<deployed-host>/?env=prod&enterpriseId=…&teamId=…&department=all"
-        style="border:0;width:100%;height:100%" allow="clipboard-write" />
+<iframe src="https://<host>/?enterprise_id=…&team_id=…&department=sales"
+        style="border:0;width:100%;height:100%" allow="clipboard-write"></iframe>
 ```
+
+---
+
+## 7. Features & notes
+
+- Full console: queue, source drawer (call transcript + proxied audio, SMS view, evidence excerpt —
+  customer verbatim vs "Why Vini flagged this"), resolve/assign/incorrect+reclassify writes,
+  resolved-tab filters, source links on closed items.
+- Intent-catalog / extraction-config / dealer-intent-config are **UAT-only** today (404 on prod;
+  handled gracefully).
+- Resolved/Incorrect tabs show items acted on **in-session** (queue fetch requests pending items).
+- `mark-incorrect` sends `isComplete:true` — confirm with backend whether flagged should bucket
+  distinctly from completed.

@@ -7,38 +7,38 @@ import { fetchActionItemsViaProxy } from "@/components/max-2/sales/console-v2/ac
 import type { ActionItem } from "@/components/max-2/sales/console-v2/action-items/data"
 
 /**
- * Standalone Action Items — the iframe target. ALL scope is read from the URL:
+ * Standalone Action Items — the iframe target.
  *
- *   /?env=uat|prod&enterpriseId=<id>&teamId=<id>&department=all|sales|service
- *   optional: &userId=<id>&userEmail=<email>   (acting BDC — recorded on resolve/assign)
+ *   /?enterprise_id=<id>&team_id=<id>          ← scope (snake_case, converse-ai contract)
+ *   optional: &department=sales|service, &userId=<id>&userEmail=<email>
  *
- * `env` selects the backend creds server-side (UAT vs prod). Enterprise/team scope the data.
- * When embedded (enterpriseId present) it renders chrome-free. Opened bare (no enterpriseId), a
- * slim helper lets you build the URL for local testing — the URL stays the single source of truth.
+ * ENV is NOT in the URL — it's derived server-side from APP_BACKEND_BASEURL (see lib/be-backend).
+ * DEPARTMENT is a UI toggle (Sales | Service, default Sales); switching it re-fetches with a
+ * loading state, then renders that department's view.
  */
 function ActionItemsApp() {
   const params = useSearchParams()
-  const env = (params.get("env") || "prod").toLowerCase()
-  const ent = params.get("enterpriseId") ?? params.get("enterprise_id") ?? ""
-  const team = params.get("teamId") ?? params.get("team_id") ?? ""
-  const dept = params.get("department") ?? params.get("serviceType") ?? params.get("tab") ?? "all"
+  const ent = params.get("enterprise_id") ?? params.get("enterpriseId") ?? ""
+  const team = params.get("team_id") ?? params.get("teamId") ?? ""
   const userId = params.get("userId") ?? params.get("user_id") ?? ""
   const userEmail = params.get("userEmail") ?? params.get("email") ?? ""
+  const initialDept = (params.get("department") ?? params.get("serviceType") ?? "sales").toLowerCase()
 
+  const [department, setDepartment] = useState(initialDept === "service" ? "service" : "sales")
   const [items, setItems] = useState<ActionItem[] | undefined>(undefined)
   const [count, setCount] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Load whenever the URL scope changes. be-client reads env/ent/team from window.__AI_SCOPE__.
+  // Re-fetch whenever scope OR department changes. Department toggle → items:undefined → loading → view.
   useEffect(() => {
     let cancelled = false
     ;(window as unknown as { __AI_SCOPE__?: object }).__AI_SCOPE__ = {
-      env, enterpriseId: ent, teamId: team, department: dept, userId, userEmail, token: "",
+      enterpriseId: ent, teamId: team, department, userId, userEmail, token: "",
     }
-    setItems(undefined)
+    setItems(undefined) // shows the loading state
     setError(null)
     setCount(null)
-    fetchActionItemsViaProxy(ent || undefined, team || undefined)
+    fetchActionItemsViaProxy(ent || undefined, team || undefined, department)
       .then((live) => {
         if (cancelled) return
         const arr = Array.isArray(live) ? live : []
@@ -52,31 +52,54 @@ function ActionItemsApp() {
         setError(String((e as Error)?.message || e))
       })
     return () => { cancelled = true }
-  }, [env, ent, team, dept, userId, userEmail])
+  }, [ent, team, department, userId, userEmail])
 
-  const scopeLabel = `${ent || "default ent"} / ${team || "default team"}${dept !== "all" ? ` · ${dept}` : ""} · ${env}`
+  const scopeLabel = `${ent || "default ent"} / ${team || "default team"} · ${department}`
 
   return (
     <div className="console-v2-sales-root flex h-screen w-full min-w-0 flex-col overflow-hidden bg-spyne-page">
-      {/* Local-testing helper — only when no enterprise is supplied. Navigates (URL stays the source of truth). */}
-      {!ent && <ScopeHelper env={env} />}
+      {/* Department toggle (Sales | Service) — persists across the loading state. */}
+      <div className="flex flex-none items-center gap-3 border-b border-spyne-border bg-spyne-surface px-4 py-2">
+        {!ent && <ScopeHelper />}
+        <div className="ml-auto inline-flex items-center gap-1 rounded-lg border border-spyne-border p-0.5" role="tablist" aria-label="Department">
+          {(["sales", "service"] as const).map((d) => {
+            const active = department === d
+            return (
+              <button
+                key={d}
+                role="tab"
+                aria-selected={active}
+                onClick={() => !active && setDepartment(d)}
+                className="rounded-md px-3.5 py-1 text-[12.5px] font-semibold capitalize transition-colors spyne-focus-ring"
+                style={active ? { background: "var(--spyne-primary)", color: "#fff" } : { color: "var(--spyne-text-secondary)" }}
+              >
+                {d}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-max2-page pb-3 pt-3">
         {items === undefined ? (
-          <div className="flex items-center justify-center py-24 text-[13px] text-spyne-text-muted">Loading action items…</div>
+          <div className="flex flex-1 items-center justify-center gap-2 py-24 text-[13px] text-spyne-text-muted">
+            <span className="material-symbols-outlined animate-spin" style={{ fontSize: 18 }}>progress_activity</span>
+            Loading {department} action items…
+          </div>
         ) : error ? (
-          <div className="flex items-center justify-center py-24 text-center text-[13px]" style={{ color: "var(--spyne-danger-text)" }}>
+          <div className="flex flex-1 items-center justify-center py-24 text-center text-[13px]" style={{ color: "var(--spyne-danger-text)" }}>
             Couldn’t load {scopeLabel}: {error}
           </div>
         ) : count === 0 ? (
-          <div className="flex items-center justify-center py-24 text-[13px]" style={{ color: "var(--spyne-warning-text)" }}>
-            No action items for {scopeLabel}
+          <div className="flex flex-1 items-center justify-center py-24 text-[13px]" style={{ color: "var(--spyne-warning-text)" }}>
+            No {department} action items for {scopeLabel}
           </div>
         ) : (
           <ActionItemsConsole
-            key={`live-${env}-${ent}-${team}-${dept}`}
+            key={`live-${ent}-${team}-${department}`}
             readOnly
             initialItems={items}
-            initialDept={dept}
+            initialDept={department}
             initialUserId={userId}
             initialUserEmail={userEmail}
           />
@@ -86,35 +109,20 @@ function ActionItemsApp() {
   )
 }
 
-/** Slim URL builder shown only when the page is opened without an enterpriseId (local testing). */
-function ScopeHelper({ env }: { env: string }) {
-  const [e, setE] = useState(env)
+/** Slim URL builder shown only when opened without an enterprise_id (local testing). */
+function ScopeHelper() {
   const [entId, setEntId] = useState("")
   const [teamId, setTeamId] = useState("")
-  const [dept, setDept] = useState("all")
   const go = () => {
-    const q = new URLSearchParams({ env: e, enterpriseId: entId.trim(), teamId: teamId.trim(), department: dept })
+    const q = new URLSearchParams({ enterprise_id: entId.trim(), team_id: teamId.trim() })
     window.location.search = q.toString()
   }
   return (
-    <form
-      onSubmit={(ev) => { ev.preventDefault(); go() }}
-      className="flex flex-wrap items-center gap-2 border-b border-spyne-border bg-spyne-surface px-4 py-2 text-[12px]"
-    >
-      <span className="font-semibold text-spyne-text-secondary">Env</span>
-      <select value={e} onChange={(ev) => setE(ev.target.value)} className="spyne-input spyne-focus-ring !h-7 cursor-pointer" style={{ paddingRight: 22 }}>
-        <option value="prod">Prod</option>
-        <option value="uat">UAT</option>
-      </select>
-      <input value={entId} onChange={(ev) => setEntId(ev.target.value)} placeholder="enterpriseId" className="spyne-input !h-7 w-48" />
-      <input value={teamId} onChange={(ev) => setTeamId(ev.target.value)} placeholder="teamId" className="spyne-input !h-7 w-48" />
-      <select value={dept} onChange={(ev) => setDept(ev.target.value)} className="spyne-input spyne-focus-ring !h-7 cursor-pointer" style={{ paddingRight: 22 }}>
-        <option value="all">All</option>
-        <option value="sales">Sales</option>
-        <option value="service">Service</option>
-      </select>
+    <form onSubmit={(ev) => { ev.preventDefault(); go() }} className="flex items-center gap-2 text-[12px]">
+      <input value={entId} onChange={(ev) => setEntId(ev.target.value)} placeholder="enterprise_id" className="spyne-input !h-7 w-44" />
+      <input value={teamId} onChange={(ev) => setTeamId(ev.target.value)} placeholder="team_id" className="spyne-input !h-7 w-44" />
       <button type="submit" className="spyne-btn-primary !h-7 !text-[12px]">Load</button>
-      <span className="text-spyne-text-muted">scope comes from the URL — this just builds it</span>
+      <span className="text-spyne-text-muted">env comes from the backend base URL (server-side)</span>
     </form>
   )
 }
