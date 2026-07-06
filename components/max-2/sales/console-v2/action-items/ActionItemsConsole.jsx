@@ -353,41 +353,15 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   const resetSelection = () => { setSelectedGroup(null); setSelectedItemId(null) }
 
   return (
-    <div className={cn(spyneSalesLayout.pageStack, 'min-h-0 flex-1 [&>*+*]:!mt-3')}>
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className={max2Classes.pageTitle}>Action items</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Acting BDC — recorded as resolver + assignee when resolving. Host may pass it via URL. */}
-          {(users.length > 0 || actingUser) && (
-            <label className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: 'var(--spyne-text-muted)' }} title="Who is resolving — recorded as the resolver and stored as the assignee (id + email)">
-              <MaterialSymbol name="badge" size={14} /> Acting as
-              <select value={actingUserId} onChange={(e) => setActingUserId(e.target.value)} className="spyne-input spyne-focus-ring cursor-pointer" style={{ fontSize: 12, height: 32, paddingRight: 22, maxWidth: 150 }}>
-                <option value="">Select you…</option>
-                {(users.length ? users : Object.entries(USERS).filter(([id]) => id !== 'vini_agent').map(([id, u]) => ({ id, name: u.name }))).map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          <button onClick={() => setRulesOpen(true)} className="spyne-btn-ghost !h-9 !text-[12.5px]" title="Action-item rules & routing">
-            <MaterialSymbol name="settings" size={16} /> Rules
+    <div className={cn(spyneSalesLayout.pageStack, 'min-h-0 flex-1 [&>*+*]:!mt-2')}>
+      {/* Header — title only (Acting-as removed; Rules + Manager/My queue moved to the tabs row) */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className={max2Classes.pageTitle}>Action items</h1>
+        {!readOnly && (
+          <button onClick={() => setCreateOpen(true)} className="spyne-btn-primary !h-8 !text-[12px]">
+            <MaterialSymbol name="add_task" size={15} /> Create action item
           </button>
-          {!readOnly && (
-            <button onClick={() => setCreateOpen(true)} className="spyne-btn-primary !h-9 !text-[12.5px]">
-              <MaterialSymbol name="add_task" size={16} /> Create action item
-            </button>
-          )}
-          <div className="inline-flex rounded-lg border border-spyne-border bg-spyne-surface p-0.5">
-            {[['manager', 'Manager', 'groups'], ['mine', 'My queue', 'person']].map(([id, label, icon]) => (
-              <button key={id} onClick={() => { setScope(id); resetSelection() }} className={cn('spyne-focus-ring inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors', scope === id ? 'bg-spyne-primary text-white' : 'text-spyne-text-secondary hover:text-spyne-text-primary')}>
-                <MaterialSymbol name={icon} size={14} /> {label}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* SLA banner — the hero answer + one-click metric filters */}
@@ -398,24 +372,38 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
         onClearedToday={() => { setTab('resolved'); setResolvedDetailId(null) }}
       />
 
-      {/* Tabs — self-contained horizontal nav (underline + spacing) */}
-      <div role="tablist" className="flex items-center gap-1" style={{ borderBottom: '1px solid var(--spyne-border)' }}>
-        {[['unresolved', 'Unresolved', filteredPending.length], ['resolved', 'Resolved', deptResolved.length], ['incorrect', 'Incorrect', deptIncorrect.length]].map(([id, label, n]) => {
-          const active = tab === id
-          return (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={active}
-              onClick={() => { setTab(id); setResolvedDetailId(null) }}
-              className="spyne-focus-ring -mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-[13px] font-semibold transition-colors"
-              style={active ? { borderColor: 'var(--spyne-primary)', color: 'var(--spyne-primary)' } : { borderColor: 'transparent', color: 'var(--spyne-text-muted)' }}
-            >
-              {label}
-              <span className="rounded-full px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums" style={active ? { background: 'var(--spyne-primary-soft)', color: 'var(--spyne-primary)' } : { background: 'var(--spyne-page-bg)', color: 'var(--spyne-text-muted)' }}>{n}</span>
-            </button>
-          )
-        })}
+      {/* Tabs + view controls (Rules · Manager/My queue) on ONE line */}
+      <div className="flex items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--spyne-border)' }}>
+        <div role="tablist" className="flex items-center gap-1">
+          {[['unresolved', 'Unresolved', filteredPending.length], ['resolved', 'Resolved', deptResolved.length], ['incorrect', 'Incorrect', deptIncorrect.length]].map(([id, label, n]) => {
+            const active = tab === id
+            return (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={active}
+                onClick={() => { setTab(id); setResolvedDetailId(null) }}
+                className="spyne-focus-ring -mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors"
+                style={active ? { borderColor: 'var(--spyne-primary)', color: 'var(--spyne-primary)' } : { borderColor: 'transparent', color: 'var(--spyne-text-muted)' }}
+              >
+                {label}
+                <span className="rounded-full px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums" style={active ? { background: 'var(--spyne-primary-soft)', color: 'var(--spyne-primary)' } : { background: 'var(--spyne-page-bg)', color: 'var(--spyne-text-muted)' }}>{n}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex items-center gap-2 pb-1">
+          <button onClick={() => setRulesOpen(true)} className="spyne-btn-ghost !h-8 !text-[12px]" title="Action-item rules & routing">
+            <MaterialSymbol name="settings" size={15} /> Rules
+          </button>
+          <div className="inline-flex rounded-lg border border-spyne-border bg-spyne-surface p-0.5">
+            {[['manager', 'Manager', 'groups'], ['mine', 'My queue', 'person']].map(([id, label, icon]) => (
+              <button key={id} onClick={() => { setScope(id); resetSelection() }} className={cn('spyne-focus-ring inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors', scope === id ? 'bg-spyne-primary text-white' : 'text-spyne-text-secondary hover:text-spyne-text-primary')}>
+                <MaterialSymbol name={icon} size={14} /> {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {tab === 'resolved' ? (
@@ -562,7 +550,7 @@ function SlaHero({ metrics, filters, onApply, onClearedToday }) {
   const heroTone = breaching ? 'var(--spyne-danger-text)' : 'var(--spyne-success-text)'
   return (
     <div
-      className="spyne-animate-fade-in flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl px-5 py-2.5"
+      className="spyne-animate-fade-in flex flex-wrap items-center gap-x-6 gap-y-1 rounded-2xl px-5 py-2"
       style={{
         background: breaching ? 'var(--spyne-danger-subtle)' : 'var(--spyne-success-subtle)',
         border: `1px solid ${breaching ? 'var(--spyne-danger-muted)' : 'var(--spyne-success-muted)'}`,
@@ -647,16 +635,24 @@ function FilterBar({ filters, onChange, items, groupBy, onGroupBy, onPickCustome
   const anyActive = filters.search || filters.assignment !== 'all' || filters.channel !== 'all' || filters.intent !== 'all' || filters.sla !== 'all' || filters.repeat || filters.created !== 'all'
   const clearAll = () => onChange({ ...filters, search: '', assignment: 'all', channel: 'all', intent: 'all', sla: 'all', repeat: false, created: 'all' })
   return (
-    <div className="spyne-card flex flex-col gap-2.5 px-3 py-2.5">
-      <div className="min-w-[220px]">
-        <CategorizedSearchBox
-          items={items.filter((i) => i.status === 'pending')}
-          value={filters.search}
-          onChange={(next) => onChange({ ...filters, search: next })}
-          onPickCustomer={onPickCustomer}
-          onPickIntent={onPickIntent}
-          onPickItem={onPickItem}
-        />
+    <div className="spyne-card flex flex-col gap-2 px-3 py-2">
+      {/* Search + Group by / Intent / Assignment / Channel — ONE line */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-56 flex-none">
+          <CategorizedSearchBox
+            items={items.filter((i) => i.status === 'pending')}
+            value={filters.search}
+            onChange={(next) => onChange({ ...filters, search: next })}
+            onPickCustomer={onPickCustomer}
+            onPickIntent={onPickIntent}
+            onPickItem={onPickItem}
+          />
+        </div>
+        <span className="hidden h-5 w-px bg-spyne-border sm:inline-block" />
+        <Select label="Group by" value={groupBy} onChange={onGroupBy} options={GROUP_BY.map(([v, l]) => [v, l])} />
+        <Select label="Intent" value={filters.intent} onChange={(v) => onChange({ ...filters, intent: v })} options={[['all', 'All'], ...[...new Set((items || []).map((it) => it.intent_id))].map((id) => [id, INTENT_TAXONOMY[id]?.display_name || id]).sort((a, b) => String(a[1]).localeCompare(String(b[1])))]} />
+        <Select label="Assignment" value={filters.assignment} onChange={(v) => onChange({ ...filters, assignment: v })} options={[['all', 'All'], ['assigned', 'Assigned'], ['unassigned', 'Unassigned']]} />
+        <Select label="Channel" value={filters.channel} onChange={(v) => onChange({ ...filters, channel: v })} options={[['all', 'All'], ['call', 'Call'], ['sms', 'SMS'], ['chat', 'Chat'], ['email', 'Email']]} />
       </div>
       {/* BDC quick filters — one-click triage */}
       <div className="flex flex-wrap items-center gap-1.5">
@@ -667,13 +663,6 @@ function FilterBar({ filters, onChange, items, groupBy, onGroupBy, onPickCustome
             <MaterialSymbol name="close" size={13} /> Clear
           </button>
         )}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Select label="Group by" value={groupBy} onChange={onGroupBy} options={GROUP_BY.map(([v, l]) => [v, l])} />
-        <span className="hidden h-5 w-px bg-spyne-border sm:inline-block" />
-        <Select label="Intent" value={filters.intent} onChange={(v) => onChange({ ...filters, intent: v })} options={[['all', 'All'], ...[...new Set((items || []).map((it) => it.intent_id))].map((id) => [id, INTENT_TAXONOMY[id]?.display_name || id]).sort((a, b) => String(a[1]).localeCompare(String(b[1])))]} />
-        <Select label="Assignment" value={filters.assignment} onChange={(v) => onChange({ ...filters, assignment: v })} options={[['all', 'All'], ['assigned', 'Assigned'], ['unassigned', 'Unassigned']]} />
-        <Select label="Channel" value={filters.channel} onChange={(v) => onChange({ ...filters, channel: v })} options={[['all', 'All'], ['call', 'Call'], ['sms', 'SMS'], ['chat', 'Chat'], ['email', 'Email']]} />
       </div>
     </div>
   )
