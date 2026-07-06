@@ -353,7 +353,7 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
         {!loading && !error && showCallDetail && (
           <>
             <div className="flex-none border-b border-gray-100 bg-white px-6 pb-4">
-              {!isMessaging ? <WaveformPlayer key={viewCallId} ref={waveRef} url={report?.recordingUrl && viewCallId ? recordingProxyUrl(viewCallId) : ''} onTimeUpdate={setAudioTime} onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} /> : null}
+              {!isMessaging ? <WaveformPlayer key={viewCallId} ref={waveRef} url={report?.recordingUrl ? recordingProxyUrl(report.recordingUrl) : ''} onTimeUpdate={setAudioTime} onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} /> : null}
             </div>
             <div className="flex-none border-b border-gray-100 bg-white px-6">
               <nav className="flex space-x-3 overflow-x-auto">

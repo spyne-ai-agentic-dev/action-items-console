@@ -3,23 +3,27 @@
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { ActionItemsConsole } from "@/components/max-2/sales/console-v2/action-items"
-import { fetchActionItemsViaProxy } from "@/components/max-2/sales/console-v2/action-items/be-client"
+import { fetchActionItems } from "@/components/max-2/sales/console-v2/action-items/be-client"
 import type { ActionItem } from "@/components/max-2/sales/console-v2/action-items/data"
 
 /**
  * Standalone Action Items — the iframe target.
  *
- *   /?enterprise_id=<id>&team_id=<id>          ← scope (snake_case, converse-ai contract)
+ *   /?env=<uat|stag|prod>&enterpriseId=<id>&teamId=<id>&token=<bearer>   ← full scope (from the host URL)
  *   optional: &department=sales|service, &userId=<id>&userEmail=<email>
+ *   (snake_case aliases enterprise_id / team_id / bearerToken are also accepted)
  *
- * ENV is NOT in the URL — it's derived server-side from APP_BACKEND_BASEURL (see lib/be-backend).
+ * ALL scope — env, token, enterpriseId, teamId — is read from the iframe URL and mirrored onto
+ * window.__AI_SCOPE__; the backend is called directly from the browser (no /api proxy).
  * DEPARTMENT is a UI toggle (Sales | Service, default Sales); switching it re-fetches with a
  * loading state, then renders that department's view.
  */
 function ActionItemsApp() {
   const params = useSearchParams()
-  const ent = params.get("enterprise_id") ?? params.get("enterpriseId") ?? ""
-  const team = params.get("team_id") ?? params.get("teamId") ?? ""
+  const ent = params.get("enterpriseId") ?? params.get("enterprise_id") ?? ""
+  const team = params.get("teamId") ?? params.get("team_id") ?? ""
+  const token = params.get("token") ?? params.get("bearerToken") ?? ""
+  const env = (params.get("env") ?? params.get("environment") ?? "prod").toLowerCase()
   const userId = params.get("userId") ?? params.get("user_id") ?? ""
   const userEmail = params.get("userEmail") ?? params.get("email") ?? ""
   const initialDept = (params.get("department") ?? params.get("serviceType") ?? "sales").toLowerCase()
@@ -33,12 +37,13 @@ function ActionItemsApp() {
   useEffect(() => {
     let cancelled = false
     ;(window as unknown as { __AI_SCOPE__?: object }).__AI_SCOPE__ = {
-      enterpriseId: ent, teamId: team, department, userId, userEmail, token: "",
+      env, enterpriseId: ent, teamId: team, department, userId, userEmail, token,
     }
     setItems(undefined) // shows the loading state
     setError(null)
     setCount(null)
-    fetchActionItemsViaProxy(ent || undefined, team || undefined, department)
+    // Direct backend call (no proxy) — uses env + token straight from the iframe URL.
+    fetchActionItems()
       .then((live) => {
         if (cancelled) return
         const arr = Array.isArray(live) ? live : []
@@ -52,7 +57,7 @@ function ActionItemsApp() {
         setError(String((e as Error)?.message || e))
       })
     return () => { cancelled = true }
-  }, [ent, team, department, userId, userEmail])
+  }, [ent, team, department, userId, userEmail, token, env])
 
   const scopeLabel = `${ent || "default ent"} / ${team || "default team"} · ${department}`
 

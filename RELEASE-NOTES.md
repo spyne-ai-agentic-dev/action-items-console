@@ -1,48 +1,51 @@
-# Action Items Console — Standalone (iframe + BE)
+# Action Items Console — Standalone (iframe, direct-to-backend)
 
-A self-contained Next.js app that renders the **Action Items** queue as an **iframe target**, with
-its own **backend proxies** (bearer token stays server-side). Aligned to the converse-ai merge
-contract: **snake_case scope params**, a **Sales/Service department toggle**, and **env derived
-from the backend base URL**.
+A self-contained Next.js app that renders the **Action Items** queue as an **iframe target**. The
+browser calls the Spyne backend **directly** — there is no server-side API proxy and no server-side
+secret. All scope (**env, token, enterpriseId, teamId**) is passed by the host on the **iframe URL**.
+A **Sales/Service department toggle** filters the queue client-side.
+
+> **v2 — proxy removed.** The previous version routed every call through same-origin `/api/*` proxies
+> that attached a server-side bearer. That wrapper is gone: the host now injects the bearer via the
+> URL and the browser talks to the backend directly (the Spyne API allows CORS). The **only**
+> remaining server route is `/api/call-recording`, a token-free same-origin shim that pipes S3 audio
+> bytes to the waveform player because the S3 recording host sends no CORS header.
 
 ---
 
 ## 1. URL contract
 
 ```
-https://<host>/?enterprise_id=<id>&team_id=<id>
+https://<host>/?env=<uat|stag|prod>&enterpriseId=<id>&teamId=<id>&token=<bearer>
    optional: &department=sales|service   (also set by the in-app toggle)
    optional: &userId=<id>&userEmail=<email>   (acting BDC, recorded on writes)
 ```
 
 | Param | Required | Meaning |
 |---|---|---|
-| `enterprise_id` | **yes** | Dealer enterprise to load *(camelCase `enterpriseId` also accepted)*. |
-| `team_id` | **yes** | Team/rooftop to load *(camelCase `teamId` also accepted)*. |
+| `env` | **yes** | `uat` \| `stag` \| `prod` — selects the backend base URL *(alias `environment`)*. |
+| `enterpriseId` | **yes** | Dealer enterprise to load *(snake_case `enterprise_id` also accepted)*. |
+| `teamId` | **yes** | Team/rooftop to load *(snake_case `team_id` also accepted)*. |
+| `token` | **yes** | Bearer for the backend, injected by the host *(alias `bearerToken`)*. |
 | `department` | no (default `sales`) | Initial department; the **Sales / Service toggle** drives it after load. |
 | `userId`, `userEmail` | no | Acting BDC — recorded as resolver/assignee on writes. |
 
-**Env is NOT in the URL.** It's derived server-side from the backend base URL (below).
+**Everything is on the URL.** There is no server-side env and no server-side token.
 
 ---
 
-## 2. Environment (server-derived, converse-ai `getIframeEnv` contract)
+## 2. Environment (from the URL `env` param)
 
-`lib/be-backend.ts → getIframeEnv()` reads `process.env.APP_BACKEND_BASEURL` (or `BACKEND_BASEURL`):
+`app/page.tsx` reads `env` off the URL into `window.__AI_SCOPE__`; `be-scope.ts → apiBaseForEnv(env)`
+maps it to the backend base the browser calls directly:
 
-| Base URL contains | env |
+| `env` | Base URL |
 |---|---|
-| `uat-api.spyne.xyz` | `uat` |
-| `beta-api.spyne.xyz` | `stag` |
-| `api.spyne.ai` | `prod` |
+| `uat` | `https://uat-api.spyne.xyz` |
+| `stag` | `https://beta-api.spyne.xyz` |
+| `prod` | `https://api.spyne.ai` |
 
-One backend base + one bearer powers the deployment:
-```
-APP_BACKEND_BASEURL = https://uat-api.spyne.xyz     # → env = uat
-AI_BEARER_TOKEN     = <bearer for that backend>
-ENTERPRISE_ID / TEAM_ID = optional defaults
-```
-*(Legacy per-env vars — `UAT_AI_BEARER_TOKEN`, `PROD_AI_API_BASE_URL`, … — are still honored as a fallback, keyed by the derived env.)*
+Missing `env` defaults to `prod`. The bearer (`token`) is attached client-side on every request.
 
 ---
 
@@ -51,47 +54,49 @@ ENTERPRISE_ID / TEAM_ID = optional defaults
 - **Sales | Service** segmented toggle, top-right. **Default: Sales.**
 - Switching → **shows a loading state → re-fetches → renders that department's view.**
 - The action-items backend has no department field, so the queue is filtered **client-side**
-  (intent → department); the `department` param is still carried to the proxy for the merge target
-  (which can forward it server-side if its API supports it).
+  (intent → department).
 
 ---
 
-## 4. Backend proxies (same-origin, no CORS, token server-side)
+## 4. Backend calls (direct from the browser)
 
-`GET /api/action-items` · `/api/call-report` · `/api/call-recording` (streams audio) ·
-`/api/conversations` · `/api/users` · `/api/intent-catalog` · `/api/extraction-config` ·
-`/api/intent-config` · `POST /api/action-items/resolve` · `/api/action-items/incorrect` ·
-`PATCH /api/assign` · `PUT /api/intent-config`. All attach the bearer for the derived env and
-forward to `conversational-ai-backend`.
+All data calls go straight to `conversational-ai-backend` at `apiBaseForEnv(env)`, with
+`Authorization: Bearer <token>` from the URL — see `be-client.ts`:
+
+`GET /conversation/action-items` · `/conversation/vapi/end-call-report-by-id` ·
+`/conversation/customers/conversations` · `/console/v1/user/get-user-list` ·
+`/conversation/intent-catalog` · `/conversation/action-items/config` ·
+`/conversation/dealer-intent-config` · `PUT /conversation/action-items/mark-resolved` ·
+`/conversation/action-items/mark-incorrect` · `/conversation/dealer-intent-config/...` ·
+`PATCH /leads/dealer/v1/assignment`.
+
+**Only** `GET /api/call-recording?url=<s3-url>` remains server-side: a token-free same-origin shim
+that pipes S3 audio bytes to WaveSurfer (the S3 recording host sends no CORS header). It holds no
+secret and touches no business API.
 
 ---
 
 ## 5. Setup & run
 
 ```bash
-cp .env.example .env.local     # set APP_BACKEND_BASEURL + AI_BEARER_TOKEN
 npm install
-npm run dev                    # http://localhost:3000/?enterprise_id=…&team_id=…
+npm run dev
+# open http://localhost:3000/?env=uat&enterpriseId=<id>&teamId=<id>&token=<bearer>
 ```
-Node ≥ 18.17 · Next 16 (App Router) · React 19 · Tailwind v4.
+Node ≥ 18.17 · Next 16 (App Router) · React 19 · Tailwind v4. No `.env` required.
 
 ---
 
 ## 6. Deploy (Vercel)
 
-Set project env vars, then **redeploy** (Vercel injects env only into new builds):
+No environment variables needed — scope is entirely URL-driven. Just deploy and embed:
 
-| Name | Example |
-|---|---|
-| `APP_BACKEND_BASEURL` | `https://uat-api.spyne.xyz` *(defines env)* |
-| `AI_BEARER_TOKEN` | *(bearer for that backend)* |
-| `ENTERPRISE_ID` / `TEAM_ID` | *(optional default rooftop)* |
-
-Embed:
 ```html
-<iframe src="https://<host>/?enterprise_id=…&team_id=…&department=sales"
+<iframe src="https://<host>/?env=prod&enterpriseId=…&teamId=…&token=…&department=sales"
         style="border:0;width:100%;height:100%" allow="clipboard-write"></iframe>
 ```
+
+The host is responsible for injecting a valid `token` (and `env`/`enterpriseId`/`teamId`) on the URL.
 
 ---
 

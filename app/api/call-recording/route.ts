@@ -1,45 +1,41 @@
-import { resolveBackend, beEnvFromReq } from "@/lib/be-backend"
-
 /**
- * LOCAL/DEV proxy → call recording audio, streamed SAME-ORIGIN so the waveform player can fetch
- * the bytes without CORS (the S3 / LiveKit recording hosts don't allow cross-origin fetch from
- * the embed, which made WaveSurfer error out with "Audio not present" even when a recording existed).
+ * Minimal SAME-ORIGIN audio streaming shim for the waveform player.
  *
- *   GET /api/call-recording?callId=...  →  resolves the fresh recordingUrl from the end-call report,
- *                                          then streams the audio (forwarding Range for seeking).
+ * This is NOT a backend API wrapper: it holds NO token, calls NO business API, and knows nothing
+ * about env / enterprise / team. It exists for one reason — the S3 recording host returns no
+ * Access-Control-Allow-Origin header, so WaveSurfer (which fetches the bytes to draw the waveform)
+ * is blocked by CORS when reading S3 directly from the browser.
  *
- * The presigned S3 URL (with its AWS credentials) stays server-side — the client only ever sees
- * this same-origin path. GET-only / read-only.
+ * The browser fetches the presigned recordingUrl directly from the (CORS-enabled) call-report API,
+ * then hands that URL to this shim, which pipes the bytes same-origin (forwarding Range for seeking).
+ *
+ *   GET /api/call-recording?url=<presigned S3 url>
+ *
+ * SSRF guard: only streams from Spyne's recording hosts (*.amazonaws.com over https).
  */
 export const dynamic = "force-dynamic"
 
+const ALLOWED_HOST = /(^|\.)amazonaws\.com$/i
+
 export async function GET(req: Request) {
-  const { base, token } = resolveBackend(beEnvFromReq(req))
-  if (!base) return new Response("proxy_not_configured", { status: 503 })
-  const callId = new URL(req.url).searchParams.get("callId")
-  if (!callId) return new Response("missing_callId", { status: 400 })
+  const raw = new URL(req.url).searchParams.get("url")
+  if (!raw) return new Response("missing_url", { status: 400 })
 
-  // 1. Resolve the fresh recording URL from the end-call report (keeps the presigned URL off the client).
-  let recordingUrl: string | null = null
+  let target: URL
   try {
-    const rr = await fetch(`${base}/conversation/vapi/end-call-report-by-id?callId=${encodeURIComponent(callId)}`, {
-      headers: { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      cache: "no-store",
-    })
-    if (rr.ok) {
-      const j: any = await rr.json()
-      recordingUrl = j?.callDetails?.recordingUrl ?? j?.callDetails?.stereoRecordingUrl ?? null
-    }
-  } catch (e: any) {
-    return new Response(`report_unreachable: ${String(e?.message || e)}`, { status: 502 })
+    target = new URL(raw)
+  } catch {
+    return new Response("bad_url", { status: 400 })
   }
-  if (!recordingUrl) return new Response("no_recording", { status: 404 })
+  if (target.protocol !== "https:" || !ALLOWED_HOST.test(target.hostname)) {
+    return new Response("host_not_allowed", { status: 403 })
+  }
 
-  // 2. Stream the audio, forwarding Range so the player can seek. Same-origin → no CORS on the client.
+  // Stream the audio, forwarding Range so the player can seek. Same-origin → no CORS on the client.
   const range = req.headers.get("range")
   let upstream: Response
   try {
-    upstream = await fetch(recordingUrl, { headers: range ? { Range: range } : {}, cache: "no-store" })
+    upstream = await fetch(target.toString(), { headers: range ? { Range: range } : {}, cache: "no-store" })
   } catch (e: any) {
     return new Response(`recording_unreachable: ${String(e?.message || e)}`, { status: 502 })
   }

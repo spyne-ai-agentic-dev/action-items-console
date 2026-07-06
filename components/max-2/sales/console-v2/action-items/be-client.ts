@@ -1,38 +1,36 @@
 /**
- * GET-only Action Items client for the embed.
+ * Direct Action Items backend client for the iframe embed.
  *
- * ⚠️ READ-ONLY: this module performs ONLY `GET` requests. No PUT/POST/PATCH/DELETE.
- * Returns mapped ActionItems when an embed scope (enterpriseId+teamId+token) is present,
- * otherwise null so the caller falls back to the bundled mock data.
+ * Every call goes STRAIGHT to the Spyne backend (conversational-ai-backend) from the browser —
+ * there is NO same-origin /api proxy. Scope (env / token / enterpriseId / teamId) comes entirely
+ * from the iframe URL, mirrored onto window.__AI_SCOPE__ by app/page.tsx:
+ *   /?env=uat|stag|prod&enterpriseId=<id>&teamId=<id>&token=<bearer>
+ * env → base URL via apiBaseForEnv (uat-api.spyne.xyz | beta-api.spyne.xyz | api.spyne.ai).
  */
 import { CUSTOMERS, USERS, prettyIntent, deptFromServiceType, type ActionItem } from "./data"
-import { getEmbedScope, apiBaseForEnv } from "./be-scope"
+import { getEmbedScope, apiBaseForEnv, type EmbedScope } from "./be-scope"
 import { mapBeItem, customersFromBe, usersFromBe } from "./be-mapper"
 
-/** env-aware same-origin proxy URL — carries ?env= from the embed scope so the server picks UAT vs prod creds. */
-function scopeEnv(): string {
-  return (window as unknown as { __AI_SCOPE__?: { env?: string } }).__AI_SCOPE__?.env || "prod"
+/** Raw URL-injected scope (window.__AI_SCOPE__) — may be partial before params resolve. */
+function rawScope(): Partial<EmbedScope> {
+  if (typeof window === "undefined") return {}
+  return (window as unknown as { __AI_SCOPE__?: Partial<EmbedScope> }).__AI_SCOPE__ || {}
 }
-function beUrl(path: string): URL {
-  const u = new URL(path, window.location.origin)
-  u.searchParams.set("env", scopeEnv())
-  return u
+/** Backend base URL for the env carried on the iframe URL (defaults to prod). */
+function apiBase(): string {
+  return apiBaseForEnv(rawScope().env || "prod")
 }
-
-/** Same-origin audio URL for the waveform player — proxies the recording so WaveSurfer can fetch
- *  the bytes without CORS (the S3/LiveKit recording hosts block cross-origin fetch from the embed). */
-export function recordingProxyUrl(callId: string): string {
-  const u = beUrl("/api/call-recording")
-  u.searchParams.set("callId", callId)
-  return u.toString()
+/** Request headers with the URL-injected bearer token attached (when present). */
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const token = rawScope().token
+  return { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(extra || {}) }
 }
 
 export async function fetchActionItems(): Promise<ActionItem[] | null> {
   const scope = getEmbedScope()
-  if (!scope) return null // no embed scope → caller uses mock
+  if (!scope) return null // no embed scope (missing token/enterpriseId/teamId) → caller uses mock
 
-  const base = apiBaseForEnv(scope.env)
-  const url = new URL(`${base}/conversation/action-items`)
+  const url = new URL(`${apiBaseForEnv(scope.env)}/conversation/action-items`)
   url.searchParams.set("enterpriseId", scope.enterpriseId)
   url.searchParams.set("teamId", scope.teamId)
   url.searchParams.set("isCompleted", "false")
@@ -42,10 +40,8 @@ export async function fetchActionItems(): Promise<ActionItem[] | null> {
 
   const res = await fetch(url.toString(), {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${scope.token}`,
-      Accept: "application/json",
-    },
+    headers: { Authorization: `Bearer ${scope.token}`, Accept: "application/json" },
+    cache: "no-store",
   })
   if (!res.ok) throw new Error(`GET /conversation/action-items → ${res.status}`)
 
@@ -65,38 +61,16 @@ export async function fetchActionItems(): Promise<ActionItem[] | null> {
   return raw.map(mapBeItem)
 }
 
-/**
- * LOCAL/DEV: fetch via the same-origin server proxy (`/api/action-items`) — no CORS, token
- * stays server-side (.env.local). Used by the embed when no token is present in the URL.
- */
-export async function fetchActionItemsViaProxy(enterpriseId?: string, teamId?: string, department?: string): Promise<ActionItem[]> {
-  const url = beUrl("/api/action-items")
-  if (enterpriseId) url.searchParams.set("enterpriseId", enterpriseId)
-  if (teamId) url.searchParams.set("teamId", teamId)
-  // Department carried for the merge-target contract; the action-items BE has no department field,
-  // so the proxy doesn't forward it and the queue is filtered client-side (intent→dept).
-  if (department && department !== "all") url.searchParams.set("department", department)
-  // Department NOT sent — action items have no department field server-side; filtered client-side.
-  const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" })
-  if (!res.ok) throw new Error(`proxy /api/action-items → ${res.status}`)
-  const body = await res.json()
-  const raw: any[] = Array.isArray(body?.data)
-    ? body.grouped
-      ? body.data.flatMap((g: any) => g?.actionItems ?? [])
-      : body.data
-    : []
-  Object.assign(CUSTOMERS, customersFromBe(raw))
-  Object.assign(USERS, usersFromBe(raw))
-  return raw.map(mapBeItem)
-}
-
-/** LOCAL/DEV: assignable users for the embed's scope (active users only). */
+/** Assignable users for the embed's scope (active users only). */
 export async function fetchUsers(): Promise<{ id: string; name: string; initials: string; email?: string }[]> {
-  const scope = (window as unknown as { __AI_SCOPE__?: { enterpriseId?: string; teamId?: string } }).__AI_SCOPE__
-  const url = beUrl("/api/users")
-  if (scope?.enterpriseId) url.searchParams.set("enterpriseId", scope.enterpriseId)
-  if (scope?.teamId) url.searchParams.set("teamId", scope.teamId)
-  const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" })
+  const s = rawScope()
+  const url = new URL(`${apiBase()}/console/v1/user/get-user-list`)
+  if (s.enterpriseId) url.searchParams.set("enterpriseId", s.enterpriseId)
+  url.searchParams.set("teamIds", JSON.stringify([s.teamId || ""]))
+  url.searchParams.set("page", "1")
+  url.searchParams.set("batchSize", "100")
+  url.searchParams.set("onlyActive", "true")
+  const res = await fetch(url.toString(), { headers: authHeaders(), cache: "no-store" })
   if (!res.ok) return []
   const body = await res.json()
   const active = body?.data?.activeUsers ?? {}
@@ -110,13 +84,18 @@ export async function fetchUsers(): Promise<{ id: string; name: string; initials
     .filter((u) => u.id)
 }
 
-/** Assign an action item's lead to a user (PATCH via same-origin proxy). The embed's one write. */
+/** Assign an action item's lead to a user (PATCH). The embed's core write. */
 export async function assignActionItem(leadId: string, userId: string): Promise<boolean> {
   if (!leadId || !userId) return false
-  const res = await fetch(beUrl("/api/assign").toString(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ leadId, userId, action: "assign" }),
+  const url = new URL(`${apiBase()}/leads/dealer/v1/assignment`)
+  url.searchParams.set("lead_id", String(leadId))
+  url.searchParams.set("action", "assign")
+  url.searchParams.set("user_id", String(userId))
+  const res = await fetch(url.toString(), {
+    method: "PATCH",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: "{}",
+    cache: "no-store",
   })
   return res.ok
 }
@@ -139,48 +118,59 @@ export const INCORRECT_REASON_MAP: Record<string, string> = {
   other: "OTHER",
 }
 
-/** Mark one or many action items RESOLVED (PUT via proxy). `type` is our UI resolution type. */
+/** Mark one or many action items RESOLVED (PUT). `type` is our UI resolution type. */
 export async function resolveActionItems(actionItemId: string | string[], type: string, note?: string, resolvedBy?: string): Promise<boolean> {
   const reasonCode = RESOLVE_REASON_MAP[type] || "OTHER"
-  const res = await fetch(beUrl("/api/action-items/resolve").toString(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ actionItemId, reasonCode, note, resolvedBy }),
+  const res = await fetch(`${apiBase()}/conversation/action-items/mark-resolved`, {
+    method: "PUT",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ actionItemId, isComplete: true, resolvedBy: resolvedBy || "console", reasonCode, note: note || "" }),
+    cache: "no-store",
   })
   return res.ok
 }
 
-/** Mark one or many action items INCORRECT (PUT via proxy). `reason` is our UI incorrect reason. */
+/** Mark one or many action items INCORRECT (PUT). `reason` is our UI incorrect reason. */
 export async function markIncorrectActionItems(actionItemId: string | string[], reason: string, note?: string, resolvedBy?: string): Promise<boolean> {
   const reasonCode = INCORRECT_REASON_MAP[reason] || "OTHER"
   // NOTE: the backend mark-incorrect DTO is strict (forbidNonWhitelisted) — it rejects any extra
   // field with 400 "property X should not exist". So the reclassified intent is carried in `note`
   // (accepted), NOT as a dedicated field, until the BE adds a correctedIntent field to the DTO.
-  const res = await fetch(beUrl("/api/action-items/incorrect").toString(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ actionItemId, reasonCode, note, resolvedBy }),
+  const res = await fetch(`${apiBase()}/conversation/action-items/mark-incorrect`, {
+    method: "PUT",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ actionItemId, isComplete: true, resolvedBy: resolvedBy || "console", reasonCode, note: note || "" }),
+    cache: "no-store",
   })
   return res.ok
 }
 
-/** Persist a per-rooftop intent SLA / enabled override (PUT dealer-intent-config via proxy). */
+/** Persist a per-rooftop intent SLA / enabled override (PUT dealer-intent-config). */
 export async function upsertDealerIntentConfig(opts: { intentCode: string; serviceType?: string; customSlaMinutes?: number; isEnabled?: boolean; updatedBy?: string }): Promise<boolean> {
-  const scope = (window as unknown as { __AI_SCOPE__?: { enterpriseId?: string; teamId?: string } }).__AI_SCOPE__
-  const res = await fetch(beUrl("/api/intent-config").toString(), {
+  if (!opts.intentCode) return false
+  const s = rawScope()
+  const enterpriseId = s.enterpriseId || ""
+  const teamId = s.teamId || ""
+  const payload: Record<string, unknown> = { updatedBy: opts.updatedBy || "console" }
+  if (opts.serviceType) payload.serviceType = opts.serviceType
+  if (opts.customSlaMinutes != null) payload.customSlaMinutes = opts.customSlaMinutes
+  if (opts.isEnabled != null) payload.isEnabled = opts.isEnabled
+  const url = `${apiBase()}/conversation/dealer-intent-config/${encodeURIComponent(enterpriseId)}/${encodeURIComponent(teamId)}/${encodeURIComponent(opts.intentCode)}`
+  const res = await fetch(url, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ enterpriseId: scope?.enterpriseId, teamId: scope?.teamId, ...opts }),
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+    cache: "no-store",
   })
   return res.ok
 }
 
 /** GET the master intent catalog (name, serviceType, defaultSlaMinutes, isEnabled, …). */
 export async function fetchIntentCatalog(serviceType?: string, isEnabled?: boolean): Promise<any[]> {
-  const url = beUrl("/api/intent-catalog")
+  const url = new URL(`${apiBase()}/conversation/intent-catalog`)
   if (serviceType && serviceType !== "all") url.searchParams.set("serviceType", serviceType)
   if (isEnabled != null) url.searchParams.set("isEnabled", String(isEnabled))
-  const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" })
+  const res = await fetch(url.toString(), { headers: authHeaders(), cache: "no-store" })
   if (!res.ok) return []
   const body = await res.json()
   return Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : []
@@ -188,12 +178,12 @@ export async function fetchIntentCatalog(serviceType?: string, isEnabled?: boole
 
 /** GET per-rooftop dealer intent config (custom SLA + enabled), scoped to the embed's enterprise/team. */
 export async function fetchDealerIntentConfig(serviceType?: string): Promise<any[]> {
-  const scope = (window as unknown as { __AI_SCOPE__?: { enterpriseId?: string; teamId?: string } }).__AI_SCOPE__
-  const url = beUrl("/api/intent-config")
-  if (scope?.enterpriseId) url.searchParams.set("enterpriseId", scope.enterpriseId)
-  if (scope?.teamId) url.searchParams.set("teamId", scope.teamId)
+  const s = rawScope()
+  const url = new URL(`${apiBase()}/conversation/dealer-intent-config`)
+  if (s.enterpriseId) url.searchParams.set("enterpriseId", s.enterpriseId)
+  if (s.teamId) url.searchParams.set("teamId", s.teamId)
   if (serviceType && serviceType !== "all") url.searchParams.set("serviceType", serviceType)
-  const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" })
+  const res = await fetch(url.toString(), { headers: authHeaders(), cache: "no-store" })
   if (!res.ok) return []
   const body = await res.json()
   return Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : []
@@ -201,9 +191,9 @@ export async function fetchDealerIntentConfig(serviceType?: string): Promise<any
 
 /** GET the public extraction config (canonical intents + system prompt) for a department. */
 export async function fetchExtractionConfig(department = "sales"): Promise<any | null> {
-  const url = beUrl("/api/extraction-config")
+  const url = new URL(`${apiBase()}/conversation/action-items/config`)
   url.searchParams.set("department", department)
-  const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" })
+  const res = await fetch(url.toString(), { headers: authHeaders(), cache: "no-store" })
   if (!res.ok) return null
   return res.json()
 }
@@ -238,34 +228,39 @@ export async function fetchLiveTaxonomy(): Promise<Record<string, { display_name
   return out
 }
 
-/** LOCAL/DEV: call detail (recording, transcript, AI summary) via the same-origin proxy. */
+/**
+ * Same-origin audio shim URL for the waveform player. WaveSurfer fetches the bytes to draw the
+ * waveform, but the S3 recording host sends no CORS header, so the presigned URL (obtained directly
+ * from fetchCallReport) is piped through a token-free same-origin streamer. See app/api/call-recording.
+ */
+export function recordingProxyUrl(recordingUrl: string): string {
+  if (!recordingUrl) return ""
+  return `/api/call-recording?url=${encodeURIComponent(recordingUrl)}`
+}
+
+/** Call detail (recording, transcript, AI summary) — direct backend call. */
 export async function fetchCallReport(callId: string): Promise<any | null> {
   if (!callId) return null
-  const res = await fetch(beUrl("/api/call-report").toString() + `&callId=${encodeURIComponent(callId)}`, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  })
+  const url = `${apiBase()}/conversation/vapi/end-call-report-by-id?callId=${encodeURIComponent(callId)}`
+  const res = await fetch(url, { headers: authHeaders(), cache: "no-store" })
   if (!res.ok) throw new Error(`call-report ${res.status}`)
   return res.json()
 }
 
-/** LOCAL/DEV: the customer's conversations via the same-origin proxy. Returns { conversations, summary }.
+/** The customer's conversations — direct backend call. Returns { conversations, summary }.
  *  Scoped to the embed's selected department (window.__AI_SCOPE__.department) so leads/conversations
- *  match the top-level department filter; falls back to the proxy default when unset. */
+ *  match the top-level department filter; defaults to "service" when unset. */
 export async function fetchConversations(customerId: string): Promise<{ conversations: any[]; summary: any }> {
-  const scope = (window as unknown as { __AI_SCOPE__?: { department?: string; enterpriseId?: string; teamId?: string } }).__AI_SCOPE__
-  const dept = scope?.department && scope.department !== "all" ? scope.department : undefined
-  const url = beUrl("/api/conversations")
-  url.searchParams.set("customerId", customerId)
-  // Enterprise/team are UI-driven (window.__AI_SCOPE__) — pass them so the drawer follows the
-  // entered rooftop, not the proxy's env defaults. Proxy falls back to env only when unset.
-  if (scope?.enterpriseId) url.searchParams.set("enterpriseId", scope.enterpriseId)
-  if (scope?.teamId) url.searchParams.set("teamId", scope.teamId)
-  if (dept) url.searchParams.set("department", dept)
-  const res = await fetch(url.toString(), {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  })
+  const s = rawScope()
+  const dept = s.department && s.department !== "all" ? s.department : "service"
+  const url = new URL(`${apiBase()}/conversation/customers/conversations`)
+  url.searchParams.set("customer_id", customerId)
+  if (s.enterpriseId) url.searchParams.set("enterprise_id", s.enterpriseId)
+  if (s.teamId) url.searchParams.set("team_id", s.teamId)
+  url.searchParams.set("department", dept)
+  url.searchParams.set("page", "1")
+  url.searchParams.set("page_size", "10")
+  const res = await fetch(url.toString(), { headers: authHeaders(), cache: "no-store" })
   if (!res.ok) throw new Error(`conversations ${res.status}`)
   const body = await res.json()
   const data = body?.data ?? {}
