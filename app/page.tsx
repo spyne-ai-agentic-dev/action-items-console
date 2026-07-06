@@ -9,10 +9,12 @@ import type { ActionItem } from "@/components/max-2/sales/console-v2/action-item
 /**
  * Standalone Action Items — the iframe target.
  *
- *   /?enterprise_id=<id>&team_id=<id>          ← scope (snake_case, converse-ai contract)
+ *   /?env=<uat|stag|prod>&enterpriseId=<id>&teamId=<id>&token=<bearer>   ← full scope (from the host URL)
  *   optional: &department=sales|service, &userId=<id>&userEmail=<email>
+ *   (snake_case aliases enterprise_id / team_id / bearerToken are also accepted)
  *
- * ENV is NOT in the URL — it's derived server-side from APP_BACKEND_BASEURL (see lib/be-backend).
+ * ALL scope — env, token, enterpriseId, teamId — is read from the iframe URL and mirrored onto
+ * window.__AI_SCOPE__; the backend is called directly from the browser (no /api proxy).
  * DEPARTMENT is a UI toggle (Sales | Service, default Sales); switching it re-fetches with a
  * loading state, then renders that department's view.
  */

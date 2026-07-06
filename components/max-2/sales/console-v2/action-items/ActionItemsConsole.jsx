@@ -297,7 +297,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
     const uname = users.find((u) => u.id === userId)?.name ?? USERS[userId]?.name ?? 'rep'
     setAssigningFor(null)
     if (leadId) {
-      const ok = await assignActionItem(leadId, userId) // real PATCH via /api/assign
+      const ok = await assignActionItem(leadId, userId) // real PATCH direct to backend
       if (!ok) { flash('Could not assign — try again'); return }
     }
     setItems((p) => p.map((i) => (i.action_item_id === id ? { ...i, assignee_user_id: userId } : i)))

@@ -21,7 +21,7 @@ export function getEmbedScope(): EmbedScope | null {
   return s
 }
 
-/** Maps the iframe `env` (uat|stag|prod) to the Spyne API base — mirrors getIframeEnv() on the host. */
+/** Maps the iframe `env` (uat|stag|prod) to the Spyne API base. */
 export function apiBaseForEnv(env: string): string {
   switch (env) {
     case "uat":
