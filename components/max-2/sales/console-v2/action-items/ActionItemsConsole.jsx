@@ -160,6 +160,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   const inDept = (i) => filters.dept === 'all' || deptOf(i) === filters.dept
   const deptPending = useMemo(() => pending.filter((i) => inScope(i) && inDept(i)), [pending, filters.dept, scope, slaVersion])
   const deptResolved = useMemo(() => resolved.filter(inDept), [resolved, filters.dept, slaVersion])
+  const deptIncorrect = useMemo(() => incorrect.filter(inDept), [incorrect, filters.dept, slaVersion])
 
   const filteredPending = useMemo(() => pending.filter((i) => {
     if (scope === 'mine' && i.assignee_user_id !== CURRENT_USER_ID) return false
@@ -399,7 +400,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
 
       {/* Tabs — self-contained horizontal nav (underline + spacing) */}
       <div role="tablist" className="flex items-center gap-1" style={{ borderBottom: '1px solid var(--spyne-border)' }}>
-        {[['unresolved', 'Unresolved', filteredPending.length], ['resolved', 'Resolved', resolved.length], ['incorrect', 'Incorrect', incorrect.length]].map(([id, label, n]) => {
+        {[['unresolved', 'Unresolved', filteredPending.length], ['resolved', 'Resolved', deptResolved.length], ['incorrect', 'Incorrect', deptIncorrect.length]].map(([id, label, n]) => {
           const active = tab === id
           return (
             <button
@@ -418,9 +419,9 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
       </div>
 
       {tab === 'resolved' ? (
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1"><ResolvedList items={resolved} openId={resolvedDetailId} onOpen={setResolvedDetailId} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1"><ResolvedList items={deptResolved} openId={resolvedDetailId} onOpen={setResolvedDetailId} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} /></div>
       ) : tab === 'incorrect' ? (
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1"><IncorrectList items={incorrect} onUndo={undoIncorrect} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1"><IncorrectList items={deptIncorrect} onUndo={undoIncorrect} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} /></div>
       ) : (
         <>
           {/* Filters */}
@@ -541,7 +542,11 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
         <CreateActionItemModal onCreate={(item) => { setItems((p) => [item, ...p]); flash('Action item created'); }} onClose={() => setCreateOpen(false)} />
       )}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} onEditSla={() => setSlaVersion((v) => v + 1)}
-        onPersistSla={isLive ? ((code, minutes, dept) => upsertDealerIntentConfig({ intentCode: code, serviceType: dept === 'sales' ? 'sales' : 'service', customSlaMinutes: minutes, updatedBy: actingUser?.id || 'console' })) : null} />}
+        onPersistSla={isLive ? (async (code, minutes, dept) => {
+          const ok = await upsertDealerIntentConfig({ intentCode: code, serviceType: dept === 'sales' ? 'sales' : 'service', customSlaMinutes: minutes, updatedBy: actingUser?.id || 'console' })
+          flash(ok ? `SLA saved (${minutes}m)` : 'SLA saved in view — backend not reachable')
+          return ok
+        }) : null} />}
     </div>
   )
 }

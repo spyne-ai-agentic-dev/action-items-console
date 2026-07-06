@@ -121,10 +121,12 @@ export const INCORRECT_REASON_MAP: Record<string, string> = {
 /** Mark one or many action items RESOLVED (PUT). `type` is our UI resolution type. */
 export async function resolveActionItems(actionItemId: string | string[], type: string, note?: string, resolvedBy?: string): Promise<boolean> {
   const reasonCode = RESOLVE_REASON_MAP[type] || "OTHER"
+  // The backend DTO requires `note` and `resolvedBy` to be NON-EMPTY strings (empty → 400
+  // "note should not be empty"). Fall back to a descriptive default when the UI has none.
   const res = await fetch(`${apiBase()}/conversation/action-items/mark-resolved`, {
     method: "PUT",
     headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ actionItemId, isComplete: true, resolvedBy: resolvedBy || "console", reasonCode, note: note || "" }),
+    body: JSON.stringify({ actionItemId, isComplete: true, resolvedBy: resolvedBy || "console", reasonCode, note: (note && note.trim()) || `Resolved via console (${reasonCode})` }),
     cache: "no-store",
   })
   return res.ok
@@ -136,10 +138,12 @@ export async function markIncorrectActionItems(actionItemId: string | string[], 
   // NOTE: the backend mark-incorrect DTO is strict (forbidNonWhitelisted) — it rejects any extra
   // field with 400 "property X should not exist". So the reclassified intent is carried in `note`
   // (accepted), NOT as a dedicated field, until the BE adds a correctedIntent field to the DTO.
+  // It ALSO requires `note` + `resolvedBy` to be NON-EMPTY (empty note → 400 "note should not be
+  // empty"), which is why flagging without a reclassification used to fail silently — default it.
   const res = await fetch(`${apiBase()}/conversation/action-items/mark-incorrect`, {
     method: "PUT",
     headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ actionItemId, isComplete: true, resolvedBy: resolvedBy || "console", reasonCode, note: note || "" }),
+    body: JSON.stringify({ actionItemId, isComplete: true, resolvedBy: resolvedBy || "console", reasonCode, note: (note && note.trim()) || `Marked incorrect via console (${reasonCode})` }),
     cache: "no-store",
   })
   return res.ok
