@@ -66,15 +66,32 @@ function evidenceTurns(v: any): { role: string; text: string }[] {
     .filter((t) => t.text)
 }
 
+// Backend resolution/incorrect reasonCode → our UI reason keys (reverse of be-client's maps), so
+// resolved/incorrect items loaded back from the DB show the right reason and land in the right tab.
+const RESOLVE_CODE_TO_UI: Record<string, string> = {
+  APPOINTMENT_BOOKED: "appointment_booked", INFO_PROVIDED: "info_provided",
+  UNREACHABLE: "customer_unreachable", DO_NOT_CONTACT: "dnc", OTHER: "other",
+}
+const INCORRECT_CODE_TO_UI: Record<string, string> = {
+  MISCLASSIFIED_INTENT: "wrong_intent", NOT_APPLICABLE: "not_a_task",
+  DUPLICATE_ENTRY: "duplicate_of_existing", SPAM_OR_TEST_CALL: "spam_or_test", OTHER: "other",
+}
+
 export function mapBeItem(doc: any): ActionItem {
   const meta = (doc && doc.meta) || {}
   const customer = (doc && doc.customer) || {}
   const ch = meta.source_channel ?? meta.source_type ?? (meta.callSid ? "call" : undefined)
   const channel: Channel = CHANNELS.indexOf(ch) >= 0 ? ch : "call"
-  const status: ActionItemStatus = doc?.is_completed
-    ? "completed"
-    : meta.status === "incorrect" || doc?.is_active === false
-      ? "incorrect"
+  // Persisted outcome (from a console resolve/mark-incorrect): meta.resolution.{status,reasonCode,…}.
+  const resolution = (meta && meta.resolution) || null
+  const resStatus = resolution?.status ? String(resolution.status).toUpperCase() : null
+  const isIncorrect = resStatus === "INCORRECT" || meta.status === "incorrect" || doc?.is_active === false
+  // Check INCORRECT before is_completed — mark-incorrect ALSO sets is_completed:true, so an incorrect
+  // item would otherwise be mis-bucketed as "completed".
+  const status: ActionItemStatus = isIncorrect
+    ? "incorrect"
+    : doc?.is_completed
+      ? "completed"
       : "pending"
   const createdAt = doc?.createdAt ?? doc?.created_at ?? meta.created_at ?? new Date().toISOString()
   const rawAssignee = doc?.assigned_to ?? meta.assignee_user_id
@@ -97,10 +114,10 @@ export function mapBeItem(doc: any): ActionItem {
     created_by_ai: meta.created_by_ai ?? true,
     status,
     assignee_user_id: assignee,
-    closed_at: doc?.completedAt ?? meta.closed_at ?? undefined,
-    resolution_note: meta.resolution_note ?? undefined,
-    resolution_type: meta.resolution_type ?? undefined,
-    incorrect_reason: meta.incorrect_reason ?? undefined,
+    closed_at: resolution?.resolvedAt ?? doc?.completedAt ?? meta.closed_at ?? undefined,
+    resolution_note: resolution?.note ?? meta.resolution_note ?? undefined,
+    resolution_type: (!isIncorrect && resolution?.reasonCode ? RESOLVE_CODE_TO_UI[resolution.reasonCode] : undefined) ?? meta.resolution_type ?? undefined,
+    incorrect_reason: (isIncorrect && resolution?.reasonCode ? INCORRECT_CODE_TO_UI[resolution.reasonCode] : undefined) ?? meta.incorrect_reason ?? undefined,
     repeat_caller_count: Number(meta.repeat_caller_count ?? 0),
     last_observed_at: meta.last_observed_at ?? doc?.updatedAt ?? createdAt,
     escalation_reason: meta.escalation_reason ?? (doc?.time_sensitive ? "aged_past_sla" : undefined),

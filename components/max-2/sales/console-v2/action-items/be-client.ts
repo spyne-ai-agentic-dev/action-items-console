@@ -61,6 +61,37 @@ export async function fetchActionItems(): Promise<ActionItem[] | null> {
   return raw.map(mapBeItem)
 }
 
+/**
+ * Completed items (RESOLVED + INCORRECT) from the DB, so the Resolved/Incorrect tabs persist across
+ * reloads instead of only showing this session's actions. Filtered to items with a console/human
+ * resolution (`meta.resolution`) — skips AI/system-completed items (e.g. outbound SMS) that would
+ * otherwise clutter the Resolved tab. Status/reason are derived from meta.resolution in mapBeItem.
+ */
+export async function fetchCompletedActionItems(): Promise<ActionItem[]> {
+  const scope = getEmbedScope()
+  if (!scope) return []
+  const url = new URL(`${apiBaseForEnv(scope.env)}/conversation/action-items`)
+  url.searchParams.set("enterpriseId", scope.enterpriseId)
+  url.searchParams.set("teamId", scope.teamId)
+  url.searchParams.set("isCompleted", "true")
+  url.searchParams.set("groupByCustomer", "false")
+  url.searchParams.set("limit", "200")
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: { Authorization: `Bearer ${scope.token}`, Accept: "application/json" },
+    cache: "no-store",
+  })
+  if (!res.ok) return []
+  const body = await res.json()
+  const all: any[] = Array.isArray(body?.data)
+    ? body.grouped ? body.data.flatMap((g: any) => g?.actionItems ?? []) : body.data
+    : []
+  const raw = all.filter((it) => it?.meta?.resolution) // only console/human resolve/flag actions
+  Object.assign(CUSTOMERS, customersFromBe(raw))
+  Object.assign(USERS, usersFromBe(raw))
+  return raw.map(mapBeItem)
+}
+
 /** Assignable users for the embed's scope (active users only). */
 export async function fetchUsers(): Promise<{ id: string; name: string; initials: string; email?: string }[]> {
   const s = rawScope()

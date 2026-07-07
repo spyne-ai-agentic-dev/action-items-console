@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { ActionItemsConsole } from "@/components/max-2/sales/console-v2/action-items"
-import { fetchActionItems } from "@/components/max-2/sales/console-v2/action-items/be-client"
+import { fetchActionItems, fetchCompletedActionItems } from "@/components/max-2/sales/console-v2/action-items/be-client"
 import type { ActionItem } from "@/components/max-2/sales/console-v2/action-items/data"
 
 /**
@@ -42,13 +42,18 @@ function ActionItemsApp() {
     setItems(undefined) // shows the loading state
     setError(null)
     setCount(null)
-    // Direct backend call (no proxy) — uses env + token straight from the iframe URL.
-    fetchActionItems()
-      .then((live) => {
+    // Direct backend calls (no proxy) — pending (queue) + completed (resolved/incorrect, from the DB
+    // so those tabs persist across reloads). Uses env + token straight from the iframe URL.
+    Promise.all([fetchActionItems(), fetchCompletedActionItems()])
+      .then(([pending, completed]) => {
         if (cancelled) return
-        const arr = Array.isArray(live) ? live : []
-        setItems(arr)
-        setCount(arr.length)
+        const pend = Array.isArray(pending) ? pending : []
+        const done = Array.isArray(completed) ? completed : []
+        // Dedup by id (an item is either pending or completed) — pending wins if it somehow appears in both.
+        const seen = new Set(pend.map((i) => i.action_item_id))
+        const merged = [...pend, ...done.filter((i) => !seen.has(i.action_item_id))]
+        setItems(merged)
+        setCount(merged.length) // render the console if there's ANY data (so Resolved/Incorrect tabs show)
       })
       .catch((e) => {
         if (cancelled) return
