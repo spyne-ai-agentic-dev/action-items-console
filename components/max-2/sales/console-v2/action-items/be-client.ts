@@ -239,7 +239,10 @@ export async function fetchLiveTaxonomy(): Promise<Record<string, { display_name
  */
 export function recordingProxyUrl(recordingUrl: string): string {
   if (!recordingUrl) return ""
-  return `/api/call-recording?url=${encodeURIComponent(recordingUrl)}`
+  // ABSOLUTE url — WaveSurfer's player only accepts http(s):// (a relative /api/… is rejected as
+  // "No recording available"). Same-origin, so it still routes through the shim.
+  const origin = typeof window !== "undefined" ? window.location.origin : ""
+  return `${origin}/api/call-recording?url=${encodeURIComponent(recordingUrl)}`
 }
 
 /** Call detail (recording, transcript, AI summary) — direct backend call. */

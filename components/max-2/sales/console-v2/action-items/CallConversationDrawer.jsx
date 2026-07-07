@@ -331,39 +331,65 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
                 {(convs || []).length === 0 && <p className="text-sm text-gray-500">No conversations found.</p>}
                 {(convs || []).map(renderConvCard)}
               </>
-            ) : evTurns.length > 0 ? (
+            ) : (
               <>
-                <SectionHeader label="What Vini captured" icon={FaRegComments} onCopy={() => copy(evTurns.map((t) => `${t.role === 'ai' ? 'Agent' : 'Customer'}: ${t.text}`).join('\n'), 'ev')} isCopied={copied === 'ev'} />
-                <p className="-mt-2 mb-3 text-xs text-gray-500">The customer quote that triggered this item, plus the agent’s reply. Open the call for the full verbatim transcript.</p>
                 {loadErr && (
-                  <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
-                    <span className="font-semibold">Couldn’t load the full call report</span> for this item — showing the captured excerpt instead.
+                  <div className="mb-1 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
+                    <span className="font-semibold">Couldn’t load the full call report</span> for this item — showing the captured details instead.
                     <span className="mt-1 block font-mono text-[10px] text-amber-700/80">{String(loadErr?.message || loadErr)}</span>
                   </div>
                 )}
-                <div className="space-y-2">
-                  {evTurns.filter((t) => t.role === 'customer').map((t, i) => (
-                    <div key={'c' + i} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                      <div className="mb-1 flex items-center gap-2"><div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-200 text-[10px] font-semibold text-green-700">CU</div><span className="text-[11px] font-semibold text-gray-500">Customer</span></div>
-                      <p className="text-[13px] leading-relaxed text-gray-800">{t.text}</p>
-                    </div>
-                  ))}
-                  {evTurns.some((t) => t.role === 'ai') && (
-                    <div className="rounded-xl border border-[#4600f2]/20 bg-[#4600f2]/5 p-3">
-                      <div className="mb-1 flex items-center gap-2"><div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#4600f2]/15 text-[10px] font-semibold text-[#4600f2]">AG</div><span className="text-[11px] font-semibold uppercase tracking-wide text-[#4600f2]">Agent</span></div>
-                      {evTurns.filter((t) => t.role === 'ai').map((t, i) => <p key={'a' + i} className="text-[13px] leading-relaxed text-gray-800">{t.text}</p>)}
-                    </div>
+
+                {/* NOTE — what this action item is, on top. */}
+                <div className="rounded-xl border border-gray-200 bg-white p-3">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">Note</p>
+                  <p className="text-[13px] font-semibold leading-relaxed text-gray-900">{item.intent_recap || 'Action item'}</p>
+                  {item.source_message && item.source_message !== item.intent_recap && (
+                    <p className="mt-1.5 text-[12px] italic leading-relaxed text-gray-600">“{item.source_message}”</p>
                   )}
                 </div>
-                {(convs || []).length > 0 && <button onClick={() => setBrowseList(true)} className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-[#4600f2]">Browse all {(convs || []).length} conversations →</button>}
+
+                {/* Exact customer + agent verbatim (when captured on the call). */}
+                {evTurns.length > 0 && (
+                  <div className="space-y-2">
+                    {evTurns.filter((t) => t.role === 'customer').map((t, i) => (
+                      <div key={'c' + i} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                        <div className="mb-1 flex items-center gap-2"><div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-200 text-[10px] font-semibold text-green-700">CU</div><span className="text-[11px] font-semibold text-gray-500">Customer</span></div>
+                        <p className="text-[13px] leading-relaxed text-gray-800">{t.text}</p>
+                      </div>
+                    ))}
+                    {evTurns.some((t) => t.role === 'ai') && (
+                      <div className="rounded-xl border border-[#4600f2]/20 bg-[#4600f2]/5 p-3">
+                        <div className="mb-1 flex items-center gap-2"><div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#4600f2]/15 text-[10px] font-semibold text-[#4600f2]">AG</div><span className="text-[11px] font-semibold uppercase tracking-wide text-[#4600f2]">Agent</span></div>
+                        {evTurns.filter((t) => t.role === 'ai').map((t, i) => <p key={'a' + i} className="text-[13px] leading-relaxed text-gray-800">{t.text}</p>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* DETAILS — the action item, vertical key/value list. */}
+                <div className="rounded-xl border border-gray-200 bg-white p-3">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">Details</p>
+                  <dl className="flex flex-col gap-2 text-[12.5px]">
+                    {[
+                      ['Customer', customerName],
+                      ['Channel', channel?.label || item.source_channel || '—'],
+                      ['Intent', String(item.intent_id || '—').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())],
+                      ['Created', ageLabel(ageMin)],
+                      ['Status', item.status || '—'],
+                      ['Assignee', item.assignee_user_id ? (report?.assigneeName || item.assignee_user_id) : 'Unassigned'],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex items-start justify-between gap-3">
+                        <dt className="flex-shrink-0 text-gray-500">{k}</dt>
+                        <dd className="min-w-0 truncate text-right font-medium text-gray-900">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+
+                <p className="text-[11px] text-gray-400">{viewCallId ? 'No full transcript stored for this call.' : 'No linked call/transcript for this item.'}</p>
+                {(convs || []).length > 0 && <button onClick={() => setBrowseList(true)} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#4600f2]">Browse all {(convs || []).length} conversations →</button>}
               </>
-            ) : (convs || []).length > 0 ? (
-              <>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{customerName}'s conversations</p>
-                {(convs || []).map(renderConvCard)}
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">No transcript on file for this item.</p>
             )}
           </div>
         )}
