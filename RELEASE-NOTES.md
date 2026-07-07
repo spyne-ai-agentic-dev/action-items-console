@@ -53,8 +53,10 @@ Missing `env` defaults to `prod`. The bearer (`token`) is attached client-side o
 
 - **Sales | Service** segmented toggle, top-right. **Default: Sales.**
 - Switching → **shows a loading state → re-fetches → renders that department's view.**
-- The action-items backend has no department field, so the queue is filtered **client-side**
-  (intent → department).
+- The action-items backend has no department field, so scoping is applied **client-side**
+  (intent → department) and covers the **whole board**: the **queue list**, the
+  **Unresolved / Resolved / Incorrect tab counts + lists**, and the **top-bar metrics** all reflect
+  only the selected department (e.g. Sales 27 vs Service 46 — not the 100-item total).
 
 ---
 
@@ -100,13 +102,71 @@ The host is responsible for injecting a valid `token` (and `env`/`enterpriseId`/
 
 ---
 
-## 7. Features & notes
+## 7. Layout
 
-- Full console: queue, source drawer (call transcript + proxied audio, SMS view, evidence excerpt —
-  customer verbatim vs "Why Vini flagged this"), resolve/assign/incorrect+reclassify writes,
-  resolved-tab filters, source links on closed items.
+Compact top so the Queue / Open-items panes get the vertical space:
+
+- **No "Acting as" selector** (the acting BDC still comes from the iframe URL `userId`/`userEmail`).
+- **Rules** + **Manager / My queue** live on the **tabs row** (with Unresolved / Resolved / Incorrect).
+- **Search + Group by + Intent + Assignment + Channel** all on **one line** (search narrowed);
+  quick-filter chips on a second line.
+- Tighter section gaps + compact SLA hero → the top section is ~30% of the page.
+
+---
+
+## 8. Source drawer (call & conversation)
+
+Opening **Listen** / **Transcript** resolves the item's **real call** — it tries the item's own call
+id (`callSid`) → its conversation id → (for call items) the customer's most recent call — so it lands
+on the actual call instead of a snippet. Then:
+
+- **Recording**: plays via the same-origin audio shim when `callDetails.recordingUrl` exists. The shim
+  URL is **absolute** (`https://<host>/api/call-recording?url=…`) so WaveSurfer accepts it
+  (it rejects relative URLs as "No recording available").
+- **No recording / no report**: instead of a silent dead end, the drawer surfaces an explicit
+  diagnostic — *"No recording returned by the backend … recordingUrl is empty"* (report loaded, no
+  audio) or *"Couldn't load the full call report …"* with the error (report unreachable).
+- **No-transcript fallback**: shows the **Note** on top + the action-item **Details** in a vertical
+  key/value list (Customer · Channel · Intent · Created · Status · Assignee) — no more bare
+  "No transcript on file".
+
+The **Open Items rows** show the exact **Customer + Agent verbatim** (from the item's evidence turns).
+
+---
+
+## 9. Writes & persistence
+
+- **Resolve / Mark-incorrect** send a **non-empty `note`** and `resolvedBy` — the backend DTO rejects
+  an empty `note` (`400 "note should not be empty"`), which previously made flagging/resolving fail
+  silently ("backend flag not reachable").
+- **Intent SLA**: editing an SLA in the **Rules** panel persists to `dealer-intent-config` on **any
+  close** (Done / ✕ / backdrop / Esc) with a *Saving…* state and a confirmation toast — not just on
+  input blur.
+- **Assign** → `PATCH /leads/dealer/v1/assignment` directly.
+
+---
+
+## 10. Notes & known gaps
+
+- **Auto-create by channel** toggles in the Rules panel are **session-only** — there is no backend
+  endpoint for channel routing yet, so they don't persist across reload.
 - Intent-catalog / extraction-config / dealer-intent-config are **UAT-only** today (404 on prod;
   handled gracefully).
-- Resolved/Incorrect tabs show items acted on **in-session** (queue fetch requests pending items).
+- Resolved/Incorrect tabs show items acted on **in-session** (the queue fetch requests pending items).
 - `mark-incorrect` sends `isComplete:true` — confirm with backend whether flagged should bucket
   distinctly from completed.
+- After changing env vars or deploying, **redeploy** so the embedded iframe serves the latest build
+  (a stale build is the usual reason a fix "doesn't show" on the deployed console).
+
+---
+
+## 11. Changelog (this release)
+
+- **Removed the Vercel API proxy wrapper** — the browser calls the Spyne backend directly; scope
+  (`env`/`token`/`enterpriseId`/`teamId`) comes entirely from the iframe URL. No server-side secrets.
+  Only `/api/call-recording` (token-free audio shim) remains.
+- **Sales / Service** toggle now scopes the whole board (queue + tabs + top bar).
+- **Compact layout** (Acting-as removed; Rules + Manager/My queue on the tabs row; one-line filters).
+- **Fixed** silent resolve/incorrect failures (non-empty `note`), SLA persistence (save on close),
+  the recording player (absolute shim URL), and the drawer (robust call resolution + diagnostics +
+  Note/Details fallback + Customer/Agent verbatim).
