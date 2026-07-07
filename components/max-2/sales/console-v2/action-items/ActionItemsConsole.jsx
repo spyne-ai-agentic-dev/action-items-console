@@ -1073,19 +1073,18 @@ function ItemCard({ item, highlight, showCustomer, askingIncorrect, askingAssign
               if (!turns.length) return <p className="mt-1.5 rounded-lg px-2.5 py-2 text-[12.5px] italic leading-relaxed" style={{ background: 'var(--spyne-page-bg)', color: 'var(--spyne-text-secondary)' }}>“{item.source_message}”</p>
               return (
                 <div className="mt-1.5 flex flex-col gap-1.5">
-                  {/* Verbatim customer quote(s) — the real trigger, present in the transcript. */}
+                  {/* Exact customer verbatim — the real trigger quote from the call. */}
                   {cust.map((t, i) => (
-                    <div key={i} className="rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: 'var(--spyne-page-bg)', color: 'var(--spyne-text-secondary)' }}>
+                    <div key={'c' + i} className="rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: 'var(--spyne-page-bg)', color: 'var(--spyne-text-secondary)' }}>
                       <span className="mr-1.5 align-top text-[9px] font-bold uppercase tracking-wide" style={{ color: 'var(--spyne-text-muted)' }}>Customer</span>{t.text}
                     </div>
                   ))}
-                  {/* Vini's rationale — NOT a spoken line; the AI's reason for creating the item. */}
-                  {ai.length > 0 && (
-                    <div className="rounded-lg px-2.5 py-1.5" style={{ background: 'var(--spyne-primary-soft)' }}>
-                      <p className="mb-0.5 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide" style={{ color: 'var(--spyne-primary)' }}><MaterialSymbol name="smart_toy" size={12} /> Why Vini flagged this</p>
-                      {ai.map((t, i) => <p key={i} className="text-[12px] italic leading-relaxed" style={{ color: 'var(--spyne-text-secondary)' }}>{t.text}</p>)}
+                  {/* Exact agent verbatim — the agent's reply on the same call. */}
+                  {ai.map((t, i) => (
+                    <div key={'a' + i} className="rounded-lg px-2.5 py-1.5 text-[12px] leading-relaxed" style={{ background: 'var(--spyne-primary-soft)', color: 'var(--spyne-text-secondary)' }}>
+                      <span className="mr-1.5 align-top text-[9px] font-bold uppercase tracking-wide" style={{ color: 'var(--spyne-primary)' }}>Agent</span>{t.text}
                     </div>
-                  )}
+                  ))}
                 </div>
               )
             })()}
@@ -1404,12 +1403,12 @@ function RulesPanel({ onClose, onEditSla, onPersistSla }) {
     onEditSla?.()
   }
   const setSlaValue = (id, raw) => {
-    setSlaDraft((p) => {
-      const unit = p[id]?.unit ?? 'h'
-      const value = Math.max(0, parseFloat(String(raw)) || 0)
-      commitHours(id, value * SLA_UNIT_HOURS[unit])
-      return { ...p, [id]: { value, unit } }
-    })
+    // Run commitHours (which mutates INTENT_TAXONOMY + bumps the parent's slaVersion) OUTSIDE the
+    // setSlaDraft updater — calling a parent setState inside an updater warns "setState during render".
+    const unit = slaDraft[id]?.unit ?? 'h'
+    const value = Math.max(0, parseFloat(String(raw)) || 0)
+    commitHours(id, value * SLA_UNIT_HOURS[unit])
+    setSlaDraft((p) => ({ ...p, [id]: { value, unit } }))
     setDirty((d) => ({ ...d, [id]: true }))
   }
   const setSlaUnit = (id, unit) => {

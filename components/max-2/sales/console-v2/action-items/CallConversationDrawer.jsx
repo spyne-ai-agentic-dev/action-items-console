@@ -144,6 +144,7 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
   const [smsView, setSmsView] = useState(null)
   const [report, setReport] = useState(null)
   const [reportFailed, setReportFailed] = useState(false)
+  const [loadErr, setLoadErr] = useState(null)   // surfaced when a call report can't be loaded
   const [convs, setConvs] = useState(null)
   const [browseList, setBrowseList] = useState(false)   // user opted to browse all conversations
   const [drilledFromList, setDrilledFromList] = useState(false) // opened a call/sms from that list
@@ -177,18 +178,38 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
     return () => { cancelled = true }
   }, [mode, item?.customer_id])
 
-  // Load the report for the current call id. A 404 (no report for this id) is NOT an error —
-  // it just means we fall back to the item's evidence excerpt.
+  // Resolve the item's REAL call and load its report. Try the item's own call id (callSid), then its
+  // conversation id, then (for call items) the customer's most recent call — so Listen/Transcript
+  // always lands on the actual call instead of dropping to the evidence snippet. Fall back to the
+  // snippet ONLY when no report exists anywhere; surface the last error so a genuine gap is visible.
   useEffect(() => {
-    if (!viewCallId) { setReport(null); setReportFailed(true); return }
     let cancelled = false
-    setLoading(true); setReportFailed(false); setReport(null)
-    fetchCallReport(viewCallId)
-      .then((raw) => { if (!cancelled) { const n = raw ? normalizeCallReport(raw) : null; setReport(n); setReportFailed(!n) } })
-      .catch(() => { if (!cancelled) setReportFailed(true) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+    ;(async () => {
+      setLoading(true); setReportFailed(false); setReport(null); setLoadErr(null)
+      const tried = []
+      let rep = null, usedId = null, lastErr = null
+      const tryId = async (id) => {
+        if (!id || tried.includes(id)) return null
+        tried.push(id)
+        try { const raw = await fetchCallReport(id); const n = raw ? normalizeCallReport(raw) : null; if (n) { usedId = id; return n } }
+        catch (e) { lastErr = e }
+        return null
+      }
+      for (const id of [item?.source_call_id, item?.source_conversation_id]) { rep = await tryId(id); if (rep) break }
+      // Last resort (call items only): the customer's most recent call from their conversation history.
+      if (!rep && !isMessaging && item?.customer_id) {
+        try {
+          const { conversations } = await fetchConversations(item.customer_id)
+          for (const c of (conversations || [])) { rep = await tryId(c.callId || c.call_id || c?.call?.id || c?.vapiCallId); if (rep) break }
+        } catch (e) { lastErr = e }
+      }
+      if (cancelled) return
+      setReport(rep); if (usedId) setViewCallId(usedId)
+      setReportFailed(!rep); setLoadErr(rep ? null : lastErr); setLoading(false)
+    })()
     return () => { cancelled = true }
-  }, [viewCallId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.source_call_id, item?.source_conversation_id, item?.customer_id])
 
   const messages = report?.messages || []
   const activeTranscriptIndex = useMemo(() => {
@@ -312,8 +333,14 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
               </>
             ) : evTurns.length > 0 ? (
               <>
-                <SectionHeader label="What Vini captured" icon={FaRegComments} onCopy={() => copy(evTurns.map((t) => `${t.role === 'ai' ? 'Vini (AI)' : 'Customer'}: ${t.text}`).join('\n'), 'ev')} isCopied={copied === 'ev'} />
-                <p className="-mt-2 mb-3 text-xs text-gray-500">The customer quote that triggered this item, plus Vini’s reason for flagging it{viewCallId && reportFailed ? ' — no full call recording is stored' : ''}. Vini’s note may paraphrase; open the call for the verbatim transcript.</p>
+                <SectionHeader label="What Vini captured" icon={FaRegComments} onCopy={() => copy(evTurns.map((t) => `${t.role === 'ai' ? 'Agent' : 'Customer'}: ${t.text}`).join('\n'), 'ev')} isCopied={copied === 'ev'} />
+                <p className="-mt-2 mb-3 text-xs text-gray-500">The customer quote that triggered this item, plus the agent’s reply. Open the call for the full verbatim transcript.</p>
+                {loadErr && (
+                  <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
+                    <span className="font-semibold">Couldn’t load the full call report</span> for this item — showing the captured excerpt instead.
+                    <span className="mt-1 block font-mono text-[10px] text-amber-700/80">{String(loadErr?.message || loadErr)}</span>
+                  </div>
+                )}
                 <div className="space-y-2">
                   {evTurns.filter((t) => t.role === 'customer').map((t, i) => (
                     <div key={'c' + i} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
@@ -323,8 +350,8 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
                   ))}
                   {evTurns.some((t) => t.role === 'ai') && (
                     <div className="rounded-xl border border-[#4600f2]/20 bg-[#4600f2]/5 p-3">
-                      <div className="mb-1 flex items-center gap-2"><FaRegComments className="h-3.5 w-3.5 text-[#4600f2]" /><span className="text-[11px] font-semibold uppercase tracking-wide text-[#4600f2]">Why Vini flagged this</span></div>
-                      {evTurns.filter((t) => t.role === 'ai').map((t, i) => <p key={'a' + i} className="text-[13px] italic leading-relaxed text-gray-700">{t.text}</p>)}
+                      <div className="mb-1 flex items-center gap-2"><div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#4600f2]/15 text-[10px] font-semibold text-[#4600f2]">AG</div><span className="text-[11px] font-semibold uppercase tracking-wide text-[#4600f2]">Agent</span></div>
+                      {evTurns.filter((t) => t.role === 'ai').map((t, i) => <p key={'a' + i} className="text-[13px] leading-relaxed text-gray-800">{t.text}</p>)}
                     </div>
                   )}
                 </div>
@@ -353,7 +380,16 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
         {!loading && !error && showCallDetail && (
           <>
             <div className="flex-none border-b border-gray-100 bg-white px-6 pb-4">
-              {!isMessaging ? <WaveformPlayer key={viewCallId} ref={waveRef} url={report?.recordingUrl ? recordingProxyUrl(report.recordingUrl) : ''} onTimeUpdate={setAudioTime} onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} /> : null}
+              {!isMessaging ? (
+                report?.recordingUrl ? (
+                  <WaveformPlayer key={viewCallId} ref={waveRef} url={recordingProxyUrl(report.recordingUrl)} onTimeUpdate={setAudioTime} onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} />
+                ) : (
+                  <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
+                    <span className="font-semibold">No recording returned by the backend for this call.</span> The report loaded, but <code>callDetails.recordingUrl</code> is empty — the recording wasn’t captured/stored server-side (transcript below is still available).
+                    <span className="mt-1 block font-mono text-[10px] text-amber-700/80">callId: {viewCallId}</span>
+                  </div>
+                )
+              ) : null}
             </div>
             <div className="flex-none border-b border-gray-100 bg-white px-6">
               <nav className="flex space-x-3 overflow-x-auto">
