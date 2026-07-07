@@ -1390,12 +1390,15 @@ function IncorrectDetail({ item, onOpenSidebar, onUndo, onOpenSource }) {
 
 function RulesPanel({ onClose, onEditSla, onPersistSla }) {
   const [channelAuto, setChannelAuto] = useState(CHANNEL_AUTOCREATE_DEFAULTS)
-  // Editable per-intent SLA (session-only). Mutates INTENT_TAXONOMY in memory + bumps the
-  // parent's slaVersion so burn/sort/past-SLA recompute live; "Reset" restores SLA_DEFAULTS.
-  // Per-intent SLA draft as {value, unit} (unit ∈ m|h|d). Stored back as sla_hours.
+  // Editable per-intent SLA. Mutates INTENT_TAXONOMY in memory + bumps the parent's slaVersion so
+  // burn/sort/past-SLA recompute live; "Reset" restores SLA_DEFAULTS. Per-intent SLA draft as
+  // {value, unit} (unit ∈ m|h|d), stored back as sla_hours. Edited intents are tracked in `dirty`
+  // and persisted to dealer-intent-config on ANY close (Done / ✕ / overlay / Esc) — see closePanel.
   const [slaDraft, setSlaDraft] = useState(() =>
     Object.fromEntries(Object.values(INTENT_TAXONOMY).map((i) => [i.id, splitSla(i.sla_hours)])),
   )
+  const [dirty, setDirty] = useState({})   // intent ids whose SLA changed, pending BE persist
+  const [saving, setSaving] = useState(false)
   const commitHours = (id, hours) => {
     INTENT_TAXONOMY[id].sla_hours = Math.max(1 / 60, Math.min(720, hours)) // 1 minute … 30 days
     onEditSla?.()
@@ -1407,6 +1410,7 @@ function RulesPanel({ onClose, onEditSla, onPersistSla }) {
       commitHours(id, value * SLA_UNIT_HOURS[unit])
       return { ...p, [id]: { value, unit } }
     })
+    setDirty((d) => ({ ...d, [id]: true }))
   }
   const setSlaUnit = (id, unit) => {
     // Re-express the current SLA in the chosen unit — the duration stays put, the number converts.
@@ -1420,13 +1424,28 @@ function RulesPanel({ onClose, onEditSla, onPersistSla }) {
     // Only mock intents have a captured default; live-catalog intents keep their catalog SLA.
     Object.values(INTENT_TAXONOMY).forEach((i) => { if (SLA_DEFAULTS[i.id] != null) INTENT_TAXONOMY[i.id].sla_hours = SLA_DEFAULTS[i.id] })
     setSlaDraft(Object.fromEntries(Object.values(INTENT_TAXONOMY).map((i) => [i.id, splitSla(INTENT_TAXONOMY[i.id].sla_hours)])))
+    if (onPersistSla) setDirty(Object.fromEntries(Object.values(INTENT_TAXONOMY).filter((i) => i.live).map((i) => [i.id, true])))
     onEditSla?.()
   }
+  // Persist EVERY edited SLA to dealer-intent-config, then close — so edits are never lost no matter
+  // how the panel is dismissed (Done button, ✕, backdrop click, or Escape). This is the real save.
+  const closePanel = async () => {
+    const ids = Object.keys(dirty).filter((id) => dirty[id])
+    if (onPersistSla && ids.length) {
+      setSaving(true)
+      try {
+        await Promise.all(ids.map((id) => onPersistSla(id, Math.round((INTENT_TAXONOMY[id]?.sla_hours ?? 24) * 60), INTENT_TAXONOMY[id]?.dept)))
+      } catch { /* toast handled by onPersistSla */ }
+      setSaving(false)
+    }
+    onClose()
+  }
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e) => { if (e.key === 'Escape') closePanel() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty])
 
   // In live mode the catalog is the source of truth → show ONLY live-catalog intents
   // (hides the bundled mock tags + camelCase stubs so the SLA config maps to real intent codes).
@@ -1442,7 +1461,7 @@ function RulesPanel({ onClose, onEditSla, onPersistSla }) {
 
   return (
     <div className="console-v2-sales-root max2-spyne">
-      <div onClick={onClose} className="fixed inset-0 z-[199]" style={{ background: 'rgba(15,23,42,0.45)' }} />
+      <div onClick={closePanel} className="fixed inset-0 z-[199]" style={{ background: 'rgba(15,23,42,0.45)' }} />
       <div className="spyne-float spyne-animate-slide-up fixed right-0 top-0 z-[200] flex h-full w-[440px] max-w-[92vw] flex-col" style={{ background: 'var(--spyne-surface)' }} role="dialog" aria-modal="true" aria-label="Action-item rules">
         {/* Header */}
         <div className="flex flex-shrink-0 items-center gap-2.5 border-b border-spyne-border px-4 py-3.5">
@@ -1450,7 +1469,7 @@ function RulesPanel({ onClose, onEditSla, onPersistSla }) {
           <div className="flex-1">
             <h2 className="text-[15px] font-bold" style={{ color: 'var(--spyne-text-primary)' }}>Action-item rules</h2>
           </div>
-          <button onClick={onClose} aria-label="Close" className="spyne-focus-ring inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-spyne-page-bg" style={{ color: 'var(--spyne-text-muted)' }}><MaterialSymbol name="close" size={20} /></button>
+          <button onClick={closePanel} aria-label="Close" className="spyne-focus-ring inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-spyne-page-bg" style={{ color: 'var(--spyne-text-muted)' }}><MaterialSymbol name="close" size={20} /></button>
         </div>
 
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-4">
@@ -1496,7 +1515,6 @@ function RulesPanel({ onClose, onEditSla, onPersistSla }) {
                           step={1}
                           value={slaDraft[i.id]?.value ?? ''}
                           onChange={(e) => setSlaValue(i.id, e.target.value)}
-                          onBlur={() => onPersistSla?.(i.id, Math.round((INTENT_TAXONOMY[i.id]?.sla_hours ?? 24) * 60), i.dept)}
                           className="spyne-input !h-7 w-14 px-1.5 text-right text-[12px] tabular-nums"
                           aria-label={`SLA duration for ${i.display_name}`}
                         />
@@ -1528,7 +1546,9 @@ function RulesPanel({ onClose, onEditSla, onPersistSla }) {
         </div>
 
         <div className="flex-shrink-0 border-t border-spyne-border px-4 py-3">
-          <button onClick={onClose} className="spyne-btn-secondary !h-9 w-full justify-center !text-[12.5px]">Done</button>
+          <button onClick={closePanel} disabled={saving} className="spyne-btn-secondary !h-9 w-full justify-center !text-[12.5px]">
+            {saving ? 'Saving…' : 'Done'}
+          </button>
         </div>
       </div>
     </div>
