@@ -23,9 +23,8 @@ import CallConversationDrawer from './CallConversationDrawer'
 import { fetchUsers, assignActionItem, resolveActionItems, markIncorrectActionItems, fetchLiveTaxonomy, upsertDealerIntentConfig } from './be-client'
 import {
   ACTION_ITEMS, INTENT_TAXONOMY, DEPT_BADGE, DEPT_LABEL, CHANNEL_META, CUSTOMERS, USERS,
-  CURRENT_USER_ID,
   RESOLUTION_TYPES, RESOLUTION_TYPE_LABEL, RESOLUTION_TYPE_GLYPH,
-  ageLabel, ageMinutes, isPastSla, slaBurnRatio, deptOf,
+  ageLabel, ageMinutes, isPastSla, slaOverdueMinutes, deptOf, phoneMatchesQuery,
   formatCreatedAt, formatSla, createdDayKey, mergeLiveIntents,
 } from './data'
 
@@ -91,7 +90,6 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   // Acting BDC identity — passed by the host (iframe URL) or picked via the "Acting as" selector.
   // Whoever resolves a ticket is recorded (resolvedBy) AND becomes the assignee (id + email).
   const [actingUserId, setActingUserId] = useState(initialUserId || '')
-  const [scope, setScope] = useState('manager') // 'manager' | 'mine'
   const [tab, setTab] = useState('unresolved')
   const [filters, setFilters] = useState({ search: '', assignment: 'all', channel: 'all', dept: initialDept || 'all', intent: 'all', sla: 'all', repeat: false, created: 'all' })
   // Apply a metric-tile / quick-chip filter and snap back to the Unresolved tab so the
@@ -118,10 +116,20 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600) }
 
   // The acting BDC resolved to { id, name, email } from the live user list (+ host-passed email).
+  // Identity sources, in order: explicit ?userId → ?userEmail matched against the live user list
+  // (the session token itself carries NO user identity — verified: its payload holds only
+  // authKey/deviceId/enterprise_id/team_id — so email is the strongest session-derived signal).
+  // Whoever resolves an item is recorded as resolvedBy AND auto-assigned as its assignee.
   const actingUser = useMemo(() => {
-    if (!actingUserId) return null
-    const u = users.find((x) => x.id === actingUserId)
-    return { id: actingUserId, name: u?.name || USERS[actingUserId]?.name || actingUserId, email: u?.email || initialUserEmail || '' }
+    if (actingUserId) {
+      const u = users.find((x) => x.id === actingUserId)
+      return { id: actingUserId, name: u?.name || USERS[actingUserId]?.name || actingUserId, email: u?.email || initialUserEmail || '' }
+    }
+    if (initialUserEmail) {
+      const u = users.find((x) => (x.email || '').toLowerCase() === initialUserEmail.toLowerCase())
+      if (u) return { id: u.id, name: u.name, email: u.email || initialUserEmail }
+    }
+    return null
   }, [actingUserId, users, initialUserEmail])
 
   // Live mode: load assignable users for the scope; merge into USERS for name/initials display.
@@ -147,28 +155,20 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   }, [initialItems])
 
   const pending = useMemo(() => items.filter((i) => i.status === 'pending'), [items])
-  // Resolved + Incorrect honour the Manager/Mine scope just like Unresolved:
-  // in 'mine' scope, restrict to the current user's items so the tab COUNTS and
-  // LISTS stay consistent across all three tabs.
-  // "Mine" = the REAL acting user (actingUser.id, from the host's userId) when live; the mock
-  // CURRENT_USER_ID is only a fallback for the bundled demo data (no acting user). Comparing
-  // against the mock id unconditionally made "My queue" match nothing for any real backend user —
-  // a live rep's own resolved/incorrect items would appear to vanish under that scope.
-  const myUserId = actingUser?.id || CURRENT_USER_ID
-  const inScope = (i) => scope !== 'mine' || i.assignee_user_id === myUserId
-  const resolved = useMemo(() => items.filter((i) => i.status === 'completed' && inScope(i)), [items, scope, myUserId])
-  const incorrect = useMemo(() => items.filter((i) => i.status === 'incorrect' && inScope(i)), [items, scope, myUserId])
+  // Manager/My-queue scope removed (product call) — everyone sees the full board; the
+  // Assignment filter still narrows to assigned/unassigned when needed.
+  const resolved = useMemo(() => items.filter((i) => i.status === 'completed'), [items])
+  const incorrect = useMemo(() => items.filter((i) => i.status === 'incorrect'), [items])
 
   // Department-scoped sets for the TOP-BAR metrics + tab totals: pending/resolved restricted to the
-  // active department (intent→dept) and Manager/Mine scope, but NOT the drill-down filters — so the
-  // bar shows e.g. Sales 57 / Service 43 (not the 100-item total), while clicking a tile narrows the list.
+  // active department (intent→dept), but NOT the drill-down filters — so the bar shows e.g.
+  // Sales 57 / Service 43 (not the 100-item total), while clicking a tile narrows the list.
   const inDept = (i) => filters.dept === 'all' || deptOf(i) === filters.dept
-  const deptPending = useMemo(() => pending.filter((i) => inScope(i) && inDept(i)), [pending, filters.dept, scope, myUserId, slaVersion])
+  const deptPending = useMemo(() => pending.filter(inDept), [pending, filters.dept, slaVersion])
   const deptResolved = useMemo(() => resolved.filter(inDept), [resolved, filters.dept, slaVersion])
   const deptIncorrect = useMemo(() => incorrect.filter(inDept), [incorrect, filters.dept, slaVersion])
 
   const filteredPending = useMemo(() => pending.filter((i) => {
-    if (scope === 'mine' && i.assignee_user_id !== myUserId) return false
     if (filters.assignment === 'unassigned' && i.assignee_user_id) return false
     if (filters.assignment === 'assigned' && !i.assignee_user_id) return false
     if (filters.channel !== 'all' && i.source_channel !== filters.channel) return false
@@ -181,18 +181,29 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
     if (filters.search) {
       const q = filters.search.toLowerCase()
       const name = customerName(i.customer_id, i).toLowerCase()
-      if (!i.intent_recap.toLowerCase().includes(q) && !name.includes(q) && !i.action_item_id.includes(q)) return false
+      const intentName = (INTENT_TAXONOMY[i.intent_id]?.display_name ?? '').toLowerCase()
+      const phone = CUSTOMERS[i.customer_id]?.phone
+      if (
+        !i.intent_recap.toLowerCase().includes(q) &&
+        !name.includes(q) &&
+        !intentName.includes(q) &&
+        !phoneMatchesQuery(phone, q) &&
+        !i.action_item_id.includes(q)
+      ) return false
     }
     return true
-  }), [pending, filters, scope, myUserId, slaVersion])
+  }), [pending, filters, slaVersion])
 
-  // Flat, SLA-burn-sorted list (used by the None view + as the source for groups).
+  // Flat list, priority-sorted: longest-breached first (ABSOLUTE minutes past the SLA deadline,
+  // not burn ratio) — an item overdue by 1 week outranks one overdue by 5 days regardless of
+  // their SLA lengths; items still inside SLA follow, closest-to-breach first.
   const flatSorted = useMemo(
-    () => [...filteredPending].sort((a, b) => slaBurnRatio(b) - slaBurnRatio(a)),
+    () => [...filteredPending].sort((a, b) => slaOverdueMinutes(b) - slaOverdueMinutes(a)),
     [filteredPending, slaVersion]
   )
 
-  // Group the filtered list by the active groupBy key, sorting groups by worst SLA burn.
+  // Group the filtered list by the active groupBy key. Groups rank by their WORST item's overdue
+  // time — a customer with one 1-week-breached item sits above a customer with two 5-day items.
   const groups = useMemo(() => {
     if (groupBy === 'none') return []
     const keyOf = (it) =>
@@ -207,9 +218,9 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
     }
     const arr = [...map.entries()]
       .filter(([, its]) => its.length > 0)
-      .map(([key, its]) => ({ key, items: [...its].sort((a, b) => slaBurnRatio(b) - slaBurnRatio(a)) }))
-    const maxBurn = (its) => (its.length ? Math.max(...its.map(slaBurnRatio)) : -1)
-    arr.sort((a, b) => maxBurn(b.items) - maxBurn(a.items))
+      .map(([key, its]) => ({ key, items: [...its].sort((a, b) => slaOverdueMinutes(b) - slaOverdueMinutes(a)) }))
+    const maxOverdue = (its) => (its.length ? Math.max(...its.map(slaOverdueMinutes)) : -Infinity)
+    arr.sort((a, b) => maxOverdue(b.items) - maxOverdue(a.items))
     return arr
   }, [filteredPending, groupBy, slaVersion])
 
@@ -359,7 +370,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
 
   return (
     <div className={cn(spyneSalesLayout.pageStack, 'min-h-0 flex-1 [&>*+*]:!mt-2')}>
-      {/* Header — title only (Acting-as removed; Rules + Manager/My queue moved to the tabs row) */}
+      {/* Header — title only (Acting-as + Manager/My-queue removed; Rules lives on the tabs row) */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className={max2Classes.pageTitle}>Action items</h1>
         {!readOnly && (
@@ -377,7 +388,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
         onClearedToday={() => { setTab('resolved'); setResolvedDetailId(null) }}
       />
 
-      {/* Tabs + view controls (Rules · Manager/My queue) on ONE line */}
+      {/* Tabs + Rules on ONE line */}
       <div className="flex items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--spyne-border)' }}>
         <div role="tablist" className="flex items-center gap-1">
           {[['unresolved', 'Unresolved', filteredPending.length], ['resolved', 'Resolved', deptResolved.length], ['incorrect', 'Incorrect', deptIncorrect.length]].map(([id, label, n]) => {
@@ -397,17 +408,11 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
             )
           })}
         </div>
+        {/* Manager/My-queue toggle removed (product call) — everyone sees the full board. */}
         <div className="flex items-center gap-2 pb-1">
           <button onClick={() => setRulesOpen(true)} className="spyne-btn-ghost !h-8 !text-[12px]" title="Action-item rules & routing">
             <MaterialSymbol name="settings" size={15} /> Rules
           </button>
-          <div className="inline-flex rounded-lg border border-spyne-border bg-spyne-surface p-0.5">
-            {[['manager', 'Manager', 'groups'], ['mine', 'My queue', 'person']].map(([id, label, icon]) => (
-              <button key={id} onClick={() => { setScope(id); resetSelection() }} className={cn('spyne-focus-ring inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors', scope === id ? 'bg-spyne-primary text-white' : 'text-spyne-text-secondary hover:text-spyne-text-primary')}>
-                <MaterialSymbol name={icon} size={14} /> {label}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 

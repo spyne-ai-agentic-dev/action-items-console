@@ -80,7 +80,11 @@ const INCORRECT_CODE_TO_UI: Record<string, string> = {
 export function mapBeItem(doc: any): ActionItem {
   const meta = (doc && doc.meta) || {}
   const customer = (doc && doc.customer) || {}
-  const ch = meta.source_channel ?? meta.source_type ?? (meta.callSid ? "call" : undefined)
+  // Channel inference (verified against live data): 322/1223 UAT pending items carry a
+  // conversationId but NO callSid — those are SMS/chat-sourced. The old default classified
+  // everything without an explicit source_channel as "call", which hid every SMS item from the
+  // Channel=SMS filter and mislabeled its drawer. No callSid + a conversationId → sms.
+  const ch = meta.source_channel ?? meta.source_type ?? (meta.callSid ? "call" : meta.conversationId ? "sms" : undefined)
   const channel: Channel = CHANNELS.indexOf(ch) >= 0 ? ch : "call"
   // Persisted outcome (from a console resolve/mark-incorrect): meta.resolution.{status,reasonCode,…}.
   const resolution = (meta && meta.resolution) || null

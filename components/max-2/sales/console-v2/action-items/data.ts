@@ -178,6 +178,31 @@ export function slaBurnRatio(item: ActionItem): number {
   return ageMinutes(item) / slaMins;
 }
 
+/**
+ * Phone search: digits-only comparison that ignores formatting AND the +1/1 country code on
+ * either side — "2162022537" matches "+1 216-202-2537", and "12162022537" matches too. Requires
+ * ≥4 query digits so short numeric queries (SLA hours, item ids) don't match every phone.
+ */
+export function phoneMatchesQuery(phone: string | undefined, query: string): boolean {
+  const digits = (s: string) => String(s || "").replace(/\D+/g, "");
+  const strip1 = (s: string) => (s.length === 11 && s.startsWith("1") ? s.slice(1) : s);
+  const qd = strip1(digits(query));
+  if (qd.length < 4) return false;
+  const pd = strip1(digits(phone ?? ""));
+  return pd.length > 0 && pd.includes(qd);
+}
+
+/**
+ * ABSOLUTE minutes past the SLA deadline (negative while still inside SLA). This — not the burn
+ * ratio — is the queue's priority key: an item breached for 1 week outranks one breached 5 days,
+ * regardless of their SLA lengths, and a customer whose worst item is 1-week-overdue ranks above
+ * a customer with several 5-day-overdue items. Inside-SLA items order by closest-to-breach.
+ */
+export function slaOverdueMinutes(item: ActionItem): number {
+  const slaMins = Math.max(1, (INTENT_TAXONOMY[item.intent_id]?.sla_hours ?? 24) * 60);
+  return ageMinutes(item) - slaMins;
+}
+
 export function deptOf(item: ActionItem): Dept {
   // Prefer the item's OWN backend service_type (authoritative, per-item) — the intent-code taxonomy
   // is a global per-code guess and several codes (CUSTOM, ScheduleAppointment, RequestCallback, …)

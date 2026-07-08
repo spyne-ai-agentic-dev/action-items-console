@@ -20,7 +20,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { MaterialSymbol } from '@/components/max-2/material-symbol'
 import { cn } from '@/lib/utils'
 import {
-  INTENT_TAXONOMY, DEPT_BADGE, CUSTOMERS,
+  INTENT_TAXONOMY, DEPT_BADGE, CUSTOMERS, phoneMatchesQuery,
 } from './data'
 
 const GROUP_LIMIT = 5
@@ -111,8 +111,10 @@ export default function CategorizedSearchBox({
   const groups = useMemo(() => {
     if (!hasQuery) return { customers: [], intents: [], items: [] }
 
+    // Match by name OR phone — phone matching ignores formatting and the +1 country code, so
+    // "2162022537" finds "+1 216-202-2537".
     const customers = Object.entries(CUSTOMERS)
-      .filter(([, c]) => c.name.toLowerCase().includes(q))
+      .filter(([, c]) => c.name.toLowerCase().includes(q) || phoneMatchesQuery(c.phone, q))
       .map(([id, c]) => ({ id, ...c }))
 
     const intents = Object.values(INTENT_TAXONOMY)

@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils'
 import { StatTile, SectionLabel, EmptyState } from '../shared'
 import {
   INTENT_TAXONOMY, DEPT_BADGE, CHANNEL_META, CUSTOMERS, USERS,
-  ageLabel, ageMinutes, isPastSla, slaBurnRatio,
+  ageLabel, ageMinutes, isPastSla, slaOverdueMinutes,
 } from './data'
 
 /* ── Small inline atoms (kept local so the drawer stays self-contained) ── */
@@ -83,7 +83,7 @@ export default function CustomerSidebar({ customerId, items, onClose, onViewProf
     const mine = (items ?? []).filter((i) => i.customer_id === customerId)
     const open = mine
       .filter((i) => i.status === 'pending')
-      .sort((a, b) => slaBurnRatio(b) - slaBurnRatio(a))
+      .sort((a, b) => slaOverdueMinutes(b) - slaOverdueMinutes(a)) // longest-breached first (matches queue priority)
     const resolved = mine
       .filter((i) => i.status === 'completed')
       .sort((a, b) => new Date(b.closed_at ?? b.created_at).getTime() - new Date(a.closed_at ?? a.created_at).getTime())
