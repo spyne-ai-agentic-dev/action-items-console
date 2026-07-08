@@ -10,8 +10,13 @@ import { withRepeatCallerCounts, type ActionItem } from "@/components/max-2/sale
  * Standalone Action Items — the iframe target.
  *
  *   /?env=<uat|stag|prod>&enterpriseId=<id>&teamId=<id>&token=<bearer>   ← full scope (from the host URL)
- *   optional: &department=sales|service, &userId=<id>&userEmail=<email>
+ *   optional: &serviceType=sales|service, &userId=<id>&userEmail=<email>
  *   (snake_case aliases enterprise_id / team_id / bearerToken are also accepted)
+ *
+ * `serviceType` is the CANONICAL department param — it matches the real converse-ai host URL
+ * contract (e.g. .../action-items?enterprise_id=...&team_id=...&serviceType=service). `department`
+ * is accepted as a read-only legacy alias for older links, but the console always WRITES
+ * `serviceType` back to the URL, never `department` — so the address bar never carries both.
  *
  * ALL scope — env, token, enterpriseId, teamId — is read from the iframe URL and mirrored onto
  * window.__AI_SCOPE__; the backend is called directly from the browser (no /api proxy).
@@ -28,23 +33,27 @@ function ActionItemsApp() {
   const env = (params.get("env") ?? params.get("environment") ?? "prod").toLowerCase()
   const userId = params.get("userId") ?? params.get("user_id") ?? ""
   const userEmail = params.get("userEmail") ?? params.get("email") ?? ""
-  const initialDept = (params.get("department") ?? params.get("serviceType") ?? "sales").toLowerCase()
+  // serviceType is canonical (matches the real host URL contract); department is a legacy read alias.
+  const initialDept = (params.get("serviceType") ?? params.get("department") ?? "sales").toLowerCase()
 
   const [department, setDepartment] = useState(initialDept === "service" ? "service" : "sales")
   const [items, setItems] = useState<ActionItem[] | undefined>(undefined)
   const [count, setCount] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Keep the URL's `department` param in sync with the toggle (replace, not push — a toggle isn't a
-  // navigation event) so the current view is always a shareable/bookmarkable link: a rep can copy the
-  // address bar URL, or an email/SMS template can build a direct `?department=sales|service` link
-  // that opens straight to that tab. Skip the very first render so opening a URL that omits
-  // `department` doesn't immediately rewrite it — only an actual toggle click updates the URL.
+  // Keep the URL's `serviceType` param in sync with the toggle (replace, not push — a toggle isn't
+  // a navigation event) so the current view is always a shareable/bookmarkable link matching the
+  // real host contract: a rep can copy the address bar URL, or an email/SMS template can build a
+  // direct `?serviceType=sales|service` link that opens straight to that tab. Drops a legacy
+  // `department=` param if present, so the URL never carries both names at once. Skip the very
+  // first render so opening a URL that omits `serviceType` doesn't immediately rewrite it — only
+  // an actual toggle click updates the URL.
   const skipFirstUrlSync = useRef(true)
   useEffect(() => {
     if (skipFirstUrlSync.current) { skipFirstUrlSync.current = false; return }
     const next = new URLSearchParams(params.toString())
-    next.set("department", department)
+    next.set("serviceType", department)
+    next.delete("department")
     router.replace(`${pathname}?${next.toString()}`, { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [department])

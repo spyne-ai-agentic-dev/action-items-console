@@ -16,7 +16,7 @@ host on the **iframe URL**.
 ### URL contract
 ```
 https://<host>/?env=<uat|stag|prod>&enterpriseId=<id>&teamId=<id>&token=<bearer>
-   optional: &department=sales|service   ·   &userId=<id>&userEmail=<email>
+   optional: &serviceType=sales|service   ·   &userId=<id>&userEmail=<email>
 ```
 
 | Param | Required | Meaning |
@@ -25,10 +25,13 @@ https://<host>/?env=<uat|stag|prod>&enterpriseId=<id>&teamId=<id>&token=<bearer>
 | `enterpriseId` | **yes** | Dealer enterprise to load *(snake_case `enterprise_id` also accepted)*. |
 | `teamId` | **yes** | Team / rooftop to load *(snake_case `team_id` also accepted)*. |
 | `token` | **yes** | Bearer for the backend, injected by the host *(alias `bearerToken`)*. |
-| `department` | no (default `sales`) | Initial department; the in-app toggle drives it after load. |
+| `serviceType` | no (default `sales`) | Initial department — **canonical param, matches the real converse-ai host URL** (e.g. `.../action-items?enterprise_id=…&team_id=…&serviceType=service`). `department` is accepted as a read-only legacy alias. |
 | `userId`, `userEmail` | no | Acting BDC — recorded as resolver / assignee on writes. |
 
-`app/page.tsx` reads these into `window.__AI_SCOPE__`; every backend call derives from it.
+`app/page.tsx` reads these into `window.__AI_SCOPE__`; every backend call derives from it. The
+in-app Sales/Service toggle **writes `serviceType` back to the URL** on every switch (dropping any
+legacy `department=`), so the current view is always a shareable, deep-linkable URL — e.g. for an
+email/SMS template that needs to land a rep directly on the Service tab.
 
 ### Environment → backend base URL
 | `env` | Base URL |
@@ -47,7 +50,7 @@ npm install && npm run dev
 Node ≥ 18.17 · Next 16 (App Router) · React 19 · Tailwind v4. **No `.env` / Vercel env vars** —
 scope is entirely URL-driven. Embed:
 ```html
-<iframe src="https://<host>/?env=prod&enterpriseId=…&teamId=…&token=…&department=sales"
+<iframe src="https://<host>/?env=prod&enterpriseId=…&teamId=…&token=…&serviceType=sales"
         style="border:0;width:100%;height:100%" allow="clipboard-write"></iframe>
 ```
 
