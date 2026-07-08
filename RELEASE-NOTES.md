@@ -137,8 +137,9 @@ highlights that item/customer/intent and clears any filter that would hide it.
 - **Intent**: any live intent in the queue.
 - **Assignment**: All · Assigned · Unassigned.
 - **Channel**: Call · SMS · Chat · Email.
-- **Quick chips** (one-click triage): Past SLA · At risk · Unassigned · Repeat callers · Created
-  today · Created yesterday · Callbacks. A "Clear" appears when any filter is active.
+- **Quick chips** (one-click triage): Past SLA · Unassigned · Repeat callers · Created today ·
+  Created yesterday · Callbacks. A "Clear" appears when any filter is active. *("At risk" tagging
+  and its chip are removed for now, by product decision.)*
 
 ### 3.6 Manager / My queue
 Scope toggle: **Manager** (all items) vs **My queue** (only the acting user's items). Applies
@@ -167,9 +168,10 @@ For the selected group/item, each `ItemCard` shows:
   - Writes are optimistic with an honest toast if the backend write isn't reachable.
 
 ### 3.9 SLA engine
-Each intent has an **SLA (hours)**. An item is **Past SLA** when its age ≥ the intent SLA, and
-**At risk** when its burn ratio (age ÷ SLA) ≥ 0.75. Burn ratio drives queue sort and the hero count.
-Live per-rooftop SLA overrides come from `dealer-intent-config` and are merged on load.
+Each intent has an **SLA (hours)**. An item is **Past SLA** when its age ≥ the intent SLA. The burn
+ratio (age ÷ SLA) drives queue sort (worst first) and the hero count. Live per-rooftop SLA overrides
+come from `dealer-intent-config` and are merged on load. *("At risk" tagging — burn ≥ 0.75 — is
+removed from the UI for now, by product decision; the sort still uses burn ratio.)*
 
 ### 3.10 Source drawer — Call & Conversation
 Opening **Listen** or **Transcript** resolves the item's **real call** (tries `callSid` →

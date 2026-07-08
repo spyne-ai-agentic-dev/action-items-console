@@ -175,7 +175,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
     if (filters.dept !== 'all' && deptOf(i) !== filters.dept) return false
     if (filters.intent !== 'all' && i.intent_id !== filters.intent) return false
     if (filters.sla === 'past' && !isPastSla(i)) return false
-    if (filters.sla === 'atrisk' && (isPastSla(i) || slaBurnRatio(i) < 0.75)) return false
+    // "At risk" tagging/filtering removed for now (product call) — burn-ratio still drives the sort.
     if (filters.repeat && i.repeat_caller_count < 3) return false
     if (filters.created !== 'all' && createdDayKey(i) !== filters.created) return false
     if (filters.search) {
@@ -628,7 +628,7 @@ function FilterBar({ filters, onChange, items, groupBy, onGroupBy, onPickCustome
   // BDC triage chips — one-click filters for the queues reps live in.
   const chips = [
     { key: 'past', label: 'Past SLA', icon: 'warning', active: filters.sla === 'past', on: () => set({ sla: filters.sla === 'past' ? 'all' : 'past' }) },
-    { key: 'atrisk', label: 'At risk', icon: 'hourglass_bottom', active: filters.sla === 'atrisk', on: () => set({ sla: filters.sla === 'atrisk' ? 'all' : 'atrisk' }) },
+    // "At risk" chip removed for now (product call) — reintroduce alongside at-risk tagging when it returns.
     { key: 'unassigned', label: 'Unassigned', icon: 'person_off', active: filters.assignment === 'unassigned', on: () => set({ assignment: filters.assignment === 'unassigned' ? 'all' : 'unassigned' }) },
     { key: 'repeat', label: 'Repeat callers', icon: 'autorenew', active: !!filters.repeat, on: () => set({ repeat: !filters.repeat }) },
     { key: 'today', label: 'Created today', icon: 'today', active: filters.created === 'today', on: () => set({ created: filters.created === 'today' ? 'all' : 'today' }) },
