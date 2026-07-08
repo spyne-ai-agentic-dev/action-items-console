@@ -10,7 +10,7 @@
  * Defensive: every field has a fallback so a sparse/unknown shape never throws.
  */
 import type { ActionItem, Channel, IntentId, ActionItemStatus } from "./data"
-import { ensureIntent } from "./data"
+import { ensureIntent, deptFromServiceTypeStrict } from "./data"
 
 const INTENT_IDS: IntentId[] = [
   "pricing_quote", "recall_response", "callback_request", "status_update",
@@ -124,6 +124,11 @@ export function mapBeItem(doc: any): ActionItem {
     // Source linkage — wire "Listen"/"Transcript" to the call + conversation.
     source_call_id: meta.callSid ?? meta.call_id ?? meta.callId ?? undefined,
     source_conversation_id: meta.conversationId ?? meta.conversation_id ?? meta.source_conversation_id ?? undefined,
+    // Authoritative per-item department: top-level doc.service_type (sales|service|parts). Several
+    // intent codes are shared across departments, so this — not the intent code — decides Sales vs
+    // Service scoping (see deptOf in data.ts). Falls back to the intent-taxonomy dept when the
+    // service_type is missing/unrecognized (e.g. "sms" on system-generated items).
+    department: deptFromServiceTypeStrict(doc?.service_type) ?? undefined,
   }
 }
 

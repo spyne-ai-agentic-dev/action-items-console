@@ -48,6 +48,10 @@ export interface ActionItem {
   // Inline transcript excerpt (from the doc's `evidence`) — rendered by the drawer when no
   // full call report / conversation thread is fetchable.
   evidence_turns?: { role: string; text: string }[];
+  // Authoritative per-item department from the backend's own `service_type` field (sales|service|
+  // parts). Several intent codes (CUSTOM, ScheduleAppointment, RequestCallback, …) are shared across
+  // departments, so the intent code alone CANNOT determine department — deptOf() prefers this field.
+  department?: Dept;
 }
 
 export const INTENT_TAXONOMY: Record<IntentId, IntentMeta> = {
@@ -175,7 +179,10 @@ export function slaBurnRatio(item: ActionItem): number {
 }
 
 export function deptOf(item: ActionItem): Dept {
-  return INTENT_TAXONOMY[item.intent_id]?.dept ?? "service";
+  // Prefer the item's OWN backend service_type (authoritative, per-item) — the intent-code taxonomy
+  // is a global per-code guess and several codes (CUSTOM, ScheduleAppointment, RequestCallback, …)
+  // are used by both departments, which was misfiling Sales items into the Service tab and vice versa.
+  return item.department ?? INTENT_TAXONOMY[item.intent_id]?.dept ?? "service";
 }
 
 /* ── Live intent catalog (UAT/prod) → merged into INTENT_TAXONOMY at runtime ─────────── */
@@ -194,6 +201,18 @@ export function prettyIntent(code: string): string {
 export function deptFromServiceType(st?: string): Dept {
   const s = String(st || "").toLowerCase();
   return s === "sales" ? "sales" : "service"; // parts folds into service
+}
+/**
+ * STRICT variant for per-item dept assignment (ActionItem.department): only trusts a recognized
+ * value (sales|service|parts). Backend items can carry other service_type values that aren't a real
+ * department (e.g. "sms" on system-generated items) — those return null so deptOf() falls back to
+ * the intent-code heuristic instead of silently mis-bucketing on an unrelated field.
+ */
+export function deptFromServiceTypeStrict(st?: string): Dept | null {
+  const s = String(st || "").toLowerCase();
+  if (s === "sales") return "sales";
+  if (s === "service" || s === "parts") return "service";
+  return null;
 }
 /** Dept for an intent code: prefix first (SALES_/SERVICE_/PARTS_), else keyword-infer, else service. */
 const deptFromCode = (code: string): Dept => {
@@ -262,4 +281,23 @@ export function createdDayKey(item: ActionItem): "today" | "yesterday" | "older"
   if (t >= startOfToday) return "today";
   if (t >= startOfToday - 86_400_000) return "yesterday";
   return "older";
+}
+
+/**
+ * Fill in repeat_caller_count client-side: the backend never sends it (meta.repeat_caller_count
+ * doesn't exist in real responses — it's always absent, so the field was silently stuck at 0 and
+ * the "Repeat callers" filter/metric never matched anything). Counts how many of the CURRENTLY
+ * LOADED items (pending + resolved + incorrect) share the same customer_id — a same-session proxy
+ * for "this customer has reached out repeatedly" since the backend exposes no call-history count.
+ */
+export function withRepeatCallerCounts(items: ActionItem[]): ActionItem[] {
+  const byCustomer = new Map<string, number>();
+  for (const it of items) {
+    if (!it.customer_id) continue;
+    byCustomer.set(it.customer_id, (byCustomer.get(it.customer_id) ?? 0) + 1);
+  }
+  return items.map((it) => {
+    const n = it.customer_id ? byCustomer.get(it.customer_id) ?? 1 : it.repeat_caller_count;
+    return n === it.repeat_caller_count ? it : { ...it, repeat_caller_count: n };
+  });
 }

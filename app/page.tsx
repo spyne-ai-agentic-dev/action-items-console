@@ -1,10 +1,10 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { Suspense, useEffect, useRef, useState } from "react"
+import { useSearchParams, usePathname, useRouter } from "next/navigation"
 import { ActionItemsConsole } from "@/components/max-2/sales/console-v2/action-items"
 import { fetchActionItems, fetchCompletedActionItems } from "@/components/max-2/sales/console-v2/action-items/be-client"
-import type { ActionItem } from "@/components/max-2/sales/console-v2/action-items/data"
+import { withRepeatCallerCounts, type ActionItem } from "@/components/max-2/sales/console-v2/action-items/data"
 
 /**
  * Standalone Action Items — the iframe target.
@@ -20,6 +20,8 @@ import type { ActionItem } from "@/components/max-2/sales/console-v2/action-item
  */
 function ActionItemsApp() {
   const params = useSearchParams()
+  const pathname = usePathname()
+  const router = useRouter()
   const ent = params.get("enterpriseId") ?? params.get("enterprise_id") ?? ""
   const team = params.get("teamId") ?? params.get("team_id") ?? ""
   const token = params.get("token") ?? params.get("bearerToken") ?? ""
@@ -32,6 +34,20 @@ function ActionItemsApp() {
   const [items, setItems] = useState<ActionItem[] | undefined>(undefined)
   const [count, setCount] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Keep the URL's `department` param in sync with the toggle (replace, not push — a toggle isn't a
+  // navigation event) so the current view is always a shareable/bookmarkable link: a rep can copy the
+  // address bar URL, or an email/SMS template can build a direct `?department=sales|service` link
+  // that opens straight to that tab. Skip the very first render so opening a URL that omits
+  // `department` doesn't immediately rewrite it — only an actual toggle click updates the URL.
+  const skipFirstUrlSync = useRef(true)
+  useEffect(() => {
+    if (skipFirstUrlSync.current) { skipFirstUrlSync.current = false; return }
+    const next = new URLSearchParams(params.toString())
+    next.set("department", department)
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [department])
 
   // Re-fetch whenever scope OR department changes. Department toggle → items:undefined → loading → view.
   useEffect(() => {
@@ -51,7 +67,7 @@ function ActionItemsApp() {
         const done = Array.isArray(completed) ? completed : []
         // Dedup by id (an item is either pending or completed) — pending wins if it somehow appears in both.
         const seen = new Set(pend.map((i) => i.action_item_id))
-        const merged = [...pend, ...done.filter((i) => !seen.has(i.action_item_id))]
+        const merged = withRepeatCallerCounts([...pend, ...done.filter((i) => !seen.has(i.action_item_id))])
         setItems(merged)
         setCount(merged.length) // render the console if there's ANY data (so Resolved/Incorrect tabs show)
       })
