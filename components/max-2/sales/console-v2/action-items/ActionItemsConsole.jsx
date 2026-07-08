@@ -64,6 +64,26 @@ const CHANNEL_AUTOCREATE_DEFAULTS = {
   call: true, sms: true, chat: true, email: true, hitl_takeover: false, hitl_warm_transfer: false,
 }
 
+/**
+ * Callback-ish intent test for the "Callbacks" quick chip. Matches the intent CODE or its display
+ * name — live backend codes vary (RequestCallback, SALES_SCHEDULE_CALLBACK, SERVICE_PARTS_CALLBACK,
+ * mock callback_request…), so a single hardcoded id can never cover them (the old chip filtered
+ * intent === 'callback_request', which zero live items carry → it always showed an empty queue).
+ */
+function isCallbackIntent(intentId) {
+  return /callback/i.test(String(intentId)) || /callback/i.test(INTENT_TAXONOMY[intentId]?.display_name ?? '')
+}
+
+/**
+ * Listen is enabled whenever the source drawer can resolve ANY call for the item — its own callSid,
+ * its conversationId, or (fallback) the customer's most recent call. The old gate (callSid only)
+ * was stricter than the drawer's real capability: QA hit items where Listen sat disabled while the
+ * drawer (via Transcript) happily showed the resolved call's transcript AND recording.
+ */
+function canListen(item) {
+  return !!(item.source_call_id || item.source_conversation_id || item.customer_id)
+}
+
 /** Turn a minted "c-<slug>" id into a readable display name. */
 function humanize(id) {
   if (!id) return ''
@@ -91,7 +111,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   // Whoever resolves a ticket is recorded (resolvedBy) AND becomes the assignee (id + email).
   const [actingUserId, setActingUserId] = useState(initialUserId || '')
   const [tab, setTab] = useState('unresolved')
-  const [filters, setFilters] = useState({ search: '', assignment: 'all', channel: 'all', dept: initialDept || 'all', intent: 'all', sla: 'all', repeat: false, created: 'all' })
+  const [filters, setFilters] = useState({ search: '', assignment: 'all', channel: 'all', dept: initialDept || 'all', intent: 'all', sla: 'all', repeat: false, created: 'all', callbacks: false })
   // Apply a metric-tile / quick-chip filter and snap back to the Unresolved tab so the
   // filtered queue is actually visible (metrics are global KPIs; the click filters the list).
   const applyQuickFilter = (patch) => { setFilters((f) => ({ ...f, ...patch })); setTab('unresolved'); setResolvedDetailId(null) }
@@ -177,6 +197,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
     if (filters.sla === 'past' && !isPastSla(i)) return false
     // "At risk" tagging/filtering removed for now (product call) — burn-ratio still drives the sort.
     if (filters.repeat && i.repeat_caller_count < 3) return false
+    if (filters.callbacks && !isCallbackIntent(i.intent_id)) return false
     if (filters.created !== 'all' && createdDayKey(i) !== filters.created) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
@@ -334,6 +355,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
       if (f.dept !== 'all' && deptOf(it) !== f.dept) next.dept = 'all'
       if (f.assignment === 'assigned' && !it.assignee_user_id) next.assignment = 'all'
       if (f.assignment === 'unassigned' && it.assignee_user_id) next.assignment = 'all'
+      if (f.callbacks && !isCallbackIntent(it.intent_id)) next.callbacks = false
       return next
     })
   }
@@ -638,12 +660,13 @@ function FilterBar({ filters, onChange, items, groupBy, onGroupBy, onPickCustome
     { key: 'repeat', label: 'Repeat callers', icon: 'autorenew', active: !!filters.repeat, on: () => set({ repeat: !filters.repeat }) },
     { key: 'today', label: 'Created today', icon: 'today', active: filters.created === 'today', on: () => set({ created: filters.created === 'today' ? 'all' : 'today' }) },
     { key: 'yesterday', label: 'Created yesterday', icon: 'event', active: filters.created === 'yesterday', on: () => set({ created: filters.created === 'yesterday' ? 'all' : 'yesterday' }) },
-    { key: 'callbacks', label: 'Callbacks', icon: 'phone_callback', active: filters.intent === 'callback_request', on: () => set({ intent: filters.intent === 'callback_request' ? 'all' : 'callback_request' }) },
+    // Matches ANY callback-ish intent (RequestCallback, SALES_SCHEDULE_CALLBACK, …) — not one id.
+    { key: 'callbacks', label: 'Callbacks', icon: 'phone_callback', active: !!filters.callbacks, on: () => set({ callbacks: !filters.callbacks }) },
   ]
   // `dept` is a top-level scope (set in the embed header), not a quick filter — leave it out
   // of the in-strip active/clear logic so clearing filters never desyncs from the top scope.
-  const anyActive = filters.search || filters.assignment !== 'all' || filters.channel !== 'all' || filters.intent !== 'all' || filters.sla !== 'all' || filters.repeat || filters.created !== 'all'
-  const clearAll = () => onChange({ ...filters, search: '', assignment: 'all', channel: 'all', intent: 'all', sla: 'all', repeat: false, created: 'all' })
+  const anyActive = filters.search || filters.assignment !== 'all' || filters.channel !== 'all' || filters.intent !== 'all' || filters.sla !== 'all' || filters.repeat || filters.callbacks || filters.created !== 'all'
+  const clearAll = () => onChange({ ...filters, search: '', assignment: 'all', channel: 'all', intent: 'all', sla: 'all', repeat: false, created: 'all', callbacks: false })
   return (
     <div className="spyne-card flex flex-col gap-2 px-3 py-2">
       {/* Search + Group by / Intent / Assignment / Channel — ONE line */}
@@ -993,7 +1016,7 @@ function SourceLinks({ item, onOpenSource }) {
   const hasConv = item.source_conversation_id || item.evidence_turns?.length
   return (
     <div className="flex items-center gap-1">
-      <button onClick={() => onOpenSource(item, 'call')} disabled={!item.source_call_id} title={item.source_call_id ? 'Open the call' : 'No call linked'} className="spyne-focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors hover:bg-spyne-page-bg disabled:cursor-not-allowed disabled:opacity-40" style={{ color: item.source_call_id ? 'var(--spyne-primary)' : 'var(--spyne-text-muted)' }}><MaterialSymbol name="play_circle" size={14} /> Listen</button>
+      <button onClick={() => onOpenSource(item, 'call')} disabled={!canListen(item)} title={canListen(item) ? 'Open the call' : 'No call linked'} className="spyne-focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors hover:bg-spyne-page-bg disabled:cursor-not-allowed disabled:opacity-40" style={{ color: canListen(item) ? 'var(--spyne-primary)' : 'var(--spyne-text-muted)' }}><MaterialSymbol name="play_circle" size={14} /> Listen</button>
       <button onClick={() => onOpenSource(item, 'conversation')} disabled={!hasConv} title={hasConv ? 'Open the conversation' : 'No conversation linked'} className="spyne-focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors hover:bg-spyne-page-bg disabled:cursor-not-allowed disabled:opacity-40" style={{ color: hasConv ? 'var(--spyne-primary)' : 'var(--spyne-text-muted)' }}><MaterialSymbol name="notes" size={14} /> Transcript</button>
     </div>
   )
@@ -1070,7 +1093,7 @@ function ItemCard({ item, highlight, showCustomer, askingIncorrect, askingAssign
             <div className="flex items-center gap-2">
               <span className="text-[9.5px] font-bold uppercase tracking-wide" style={{ color: 'var(--spyne-text-muted)' }}>Source</span>
               <div className="ml-auto flex items-center gap-1">
-                <button onClick={() => onOpenSource?.(item, 'call')} disabled={!item.source_call_id} title={item.source_call_id ? 'Open the call' : 'No call linked'} className="spyne-focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors hover:bg-spyne-page-bg disabled:cursor-not-allowed disabled:opacity-40" style={{ color: item.source_call_id ? 'var(--spyne-primary)' : 'var(--spyne-text-muted)' }}><MaterialSymbol name="play_circle" size={14} /> Listen</button>
+                <button onClick={() => onOpenSource?.(item, 'call')} disabled={!canListen(item)} title={canListen(item) ? 'Open the call' : 'No call linked'} className="spyne-focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors hover:bg-spyne-page-bg disabled:cursor-not-allowed disabled:opacity-40" style={{ color: canListen(item) ? 'var(--spyne-primary)' : 'var(--spyne-text-muted)' }}><MaterialSymbol name="play_circle" size={14} /> Listen</button>
                 {(() => { const hasSrc = item.source_conversation_id || item.evidence_turns?.length; return (
                 <button onClick={() => onOpenSource?.(item, 'conversation')} disabled={!hasSrc} title={hasSrc ? 'Open the conversation' : 'No conversation linked'} className="spyne-focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors hover:bg-spyne-page-bg disabled:cursor-not-allowed disabled:opacity-40" style={{ color: hasSrc ? 'var(--spyne-primary)' : 'var(--spyne-text-muted)' }}><MaterialSymbol name="notes" size={14} /> Transcript</button>
                 ) })()}

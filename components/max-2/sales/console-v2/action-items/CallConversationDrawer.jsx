@@ -406,15 +406,17 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
         {!loading && !error && showCallDetail && (
           <>
             <div className="flex-none border-b border-gray-100 bg-white px-6 pb-4">
-              {!isMessaging ? (
-                report?.recordingUrl ? (
-                  <WaveformPlayer key={viewCallId} ref={waveRef} url={recordingProxyUrl(report.recordingUrl)} onTimeUpdate={setAudioTime} onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} />
-                ) : (
-                  <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
-                    <span className="font-semibold">No recording returned by the backend for this call.</span> The report loaded, but <code>callDetails.recordingUrl</code> is empty — the recording wasn’t captured/stored server-side (transcript below is still available).
-                    <span className="mt-1 block font-mono text-[10px] text-amber-700/80">callId: {viewCallId}</span>
-                  </div>
-                )
+              {/* Gate the player on what actually RESOLVED, not the item's channel: an SMS-channel
+                  item can still resolve to a real CALL (via the customer's latest call fallback) —
+                  if that call has a recording, play it. The no-recording diagnostic stays
+                  call-channel-only so SMS threads aren't flagged for missing audio. */}
+              {report?.recordingUrl ? (
+                <WaveformPlayer key={viewCallId} ref={waveRef} url={recordingProxyUrl(report.recordingUrl)} onTimeUpdate={setAudioTime} onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} />
+              ) : !isMessaging ? (
+                <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
+                  <span className="font-semibold">No recording returned by the backend for this call.</span> The report loaded, but <code>callDetails.recordingUrl</code> is empty — the recording wasn’t captured/stored server-side (transcript below is still available).
+                  <span className="mt-1 block font-mono text-[10px] text-amber-700/80">callId: {viewCallId}</span>
+                </div>
               ) : null}
             </div>
             <div className="flex-none border-b border-gray-100 bg-white px-6">
