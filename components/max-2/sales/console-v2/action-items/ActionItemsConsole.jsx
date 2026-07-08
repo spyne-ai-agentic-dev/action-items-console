@@ -150,20 +150,25 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   // Resolved + Incorrect honour the Manager/Mine scope just like Unresolved:
   // in 'mine' scope, restrict to the current user's items so the tab COUNTS and
   // LISTS stay consistent across all three tabs.
-  const inScope = (i) => scope !== 'mine' || i.assignee_user_id === CURRENT_USER_ID
-  const resolved = useMemo(() => items.filter((i) => i.status === 'completed' && inScope(i)), [items, scope])
-  const incorrect = useMemo(() => items.filter((i) => i.status === 'incorrect' && inScope(i)), [items, scope])
+  // "Mine" = the REAL acting user (actingUser.id, from the host's userId) when live; the mock
+  // CURRENT_USER_ID is only a fallback for the bundled demo data (no acting user). Comparing
+  // against the mock id unconditionally made "My queue" match nothing for any real backend user —
+  // a live rep's own resolved/incorrect items would appear to vanish under that scope.
+  const myUserId = actingUser?.id || CURRENT_USER_ID
+  const inScope = (i) => scope !== 'mine' || i.assignee_user_id === myUserId
+  const resolved = useMemo(() => items.filter((i) => i.status === 'completed' && inScope(i)), [items, scope, myUserId])
+  const incorrect = useMemo(() => items.filter((i) => i.status === 'incorrect' && inScope(i)), [items, scope, myUserId])
 
   // Department-scoped sets for the TOP-BAR metrics + tab totals: pending/resolved restricted to the
   // active department (intent→dept) and Manager/Mine scope, but NOT the drill-down filters — so the
   // bar shows e.g. Sales 57 / Service 43 (not the 100-item total), while clicking a tile narrows the list.
   const inDept = (i) => filters.dept === 'all' || deptOf(i) === filters.dept
-  const deptPending = useMemo(() => pending.filter((i) => inScope(i) && inDept(i)), [pending, filters.dept, scope, slaVersion])
+  const deptPending = useMemo(() => pending.filter((i) => inScope(i) && inDept(i)), [pending, filters.dept, scope, myUserId, slaVersion])
   const deptResolved = useMemo(() => resolved.filter(inDept), [resolved, filters.dept, slaVersion])
   const deptIncorrect = useMemo(() => incorrect.filter(inDept), [incorrect, filters.dept, slaVersion])
 
   const filteredPending = useMemo(() => pending.filter((i) => {
-    if (scope === 'mine' && i.assignee_user_id !== CURRENT_USER_ID) return false
+    if (scope === 'mine' && i.assignee_user_id !== myUserId) return false
     if (filters.assignment === 'unassigned' && i.assignee_user_id) return false
     if (filters.assignment === 'assigned' && !i.assignee_user_id) return false
     if (filters.channel !== 'all' && i.source_channel !== filters.channel) return false
@@ -179,7 +184,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
       if (!i.intent_recap.toLowerCase().includes(q) && !name.includes(q) && !i.action_item_id.includes(q)) return false
     }
     return true
-  }), [pending, filters, scope, slaVersion])
+  }), [pending, filters, scope, myUserId, slaVersion])
 
   // Flat, SLA-burn-sorted list (used by the None view + as the source for groups).
   const flatSorted = useMemo(

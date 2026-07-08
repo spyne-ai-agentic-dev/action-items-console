@@ -66,26 +66,39 @@ export async function fetchActionItems(): Promise<ActionItem[] | null> {
  * reloads instead of only showing this session's actions. Filtered to items with a console/human
  * resolution (`meta.resolution`) — skips AI/system-completed items (e.g. outbound SMS) that would
  * otherwise clutter the Resolved tab. Status/reason are derived from meta.resolution in mapBeItem.
+ *
+ * Paginates through ALL completed items rather than a flat single page: the endpoint sorts by
+ * createdAt DESCENDING, and most completed items are AI/system auto-completions (not console
+ * actions), so a busy rooftop can easily push an older-but-recently-resolved item past page 1 —
+ * a flat `limit` would silently drop it from the Resolved/Incorrect tabs. Capped at 10 pages
+ * (2000 items) as a sane backstop against a runaway loop.
  */
 export async function fetchCompletedActionItems(): Promise<ActionItem[]> {
   const scope = getEmbedScope()
   if (!scope) return []
-  const url = new URL(`${apiBaseForEnv(scope.env)}/conversation/action-items`)
-  url.searchParams.set("enterpriseId", scope.enterpriseId)
-  url.searchParams.set("teamId", scope.teamId)
-  url.searchParams.set("isCompleted", "true")
-  url.searchParams.set("groupByCustomer", "false")
-  url.searchParams.set("limit", "200")
-  const res = await fetch(url.toString(), {
-    method: "GET",
-    headers: { Authorization: `Bearer ${scope.token}`, Accept: "application/json" },
-    cache: "no-store",
-  })
-  if (!res.ok) return []
-  const body = await res.json()
-  const all: any[] = Array.isArray(body?.data)
-    ? body.grouped ? body.data.flatMap((g: any) => g?.actionItems ?? []) : body.data
-    : []
+  const base = apiBaseForEnv(scope.env)
+  const headers = { Authorization: `Bearer ${scope.token}`, Accept: "application/json" }
+  const pageSize = 200
+  const maxPages = 10
+  let all: any[] = []
+  for (let page = 1; page <= maxPages; page++) {
+    const url = new URL(`${base}/conversation/action-items`)
+    url.searchParams.set("enterpriseId", scope.enterpriseId)
+    url.searchParams.set("teamId", scope.teamId)
+    url.searchParams.set("isCompleted", "true")
+    url.searchParams.set("groupByCustomer", "false")
+    url.searchParams.set("limit", String(pageSize))
+    url.searchParams.set("page", String(page))
+    const res = await fetch(url.toString(), { method: "GET", headers, cache: "no-store" })
+    if (!res.ok) break
+    const body = await res.json()
+    const batch: any[] = Array.isArray(body?.data)
+      ? body.grouped ? body.data.flatMap((g: any) => g?.actionItems ?? []) : body.data
+      : []
+    all = all.concat(batch)
+    const totalPages = Number(body?.pagination?.totalPages ?? 1)
+    if (batch.length < pageSize || page >= totalPages) break
+  }
   const raw = all.filter((it) => it?.meta?.resolution) // only console/human resolve/flag actions
   Object.assign(CUSTOMERS, customersFromBe(raw))
   Object.assign(USERS, usersFromBe(raw))
