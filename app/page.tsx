@@ -23,6 +23,24 @@ import { withRepeatCallerCounts, type ActionItem } from "@/components/max-2/sale
  * DEPARTMENT is a UI toggle (Sales | Service, default Sales); switching it re-fetches with a
  * loading state, then renders that department's view.
  */
+/** Best-effort read of ?serviceType= from the EMBEDDING page's url (document.referrer). Only
+ *  available when the host's referrer policy preserves the query cross-origin; returns null
+ *  otherwise (harmless — the caller falls through to the default). */
+function referrerServiceType(): string | null {
+  if (typeof document === "undefined" || !document.referrer) return null
+  try {
+    const v = new URL(document.referrer).searchParams.get("serviceType")
+    return v === "sales" || v === "service" ? v : null
+  } catch { return null }
+}
+
+/** postMessage to the embedding host — no-op when not iframed. Payload carries no secrets, so a
+ *  wildcard target origin is safe (the host validates `source` before acting). */
+function postToHost(msg: Record<string, string>) {
+  if (typeof window === "undefined" || window.parent === window) return
+  try { window.parent.postMessage(msg, "*") } catch { /* host gone — ignore */ }
+}
+
 function ActionItemsApp() {
   const params = useSearchParams()
   const pathname = usePathname()
@@ -34,7 +52,12 @@ function ActionItemsApp() {
   const userId = params.get("userId") ?? params.get("user_id") ?? ""
   const userEmail = params.get("userEmail") ?? params.get("email") ?? ""
   // serviceType is canonical (matches the real host URL contract); department is a legacy read alias.
-  const initialDept = (params.get("serviceType") ?? params.get("department") ?? "sales").toLowerCase()
+  // Third fallback: the HOST page's own query string via document.referrer — when the console is
+  // iframed and the host puts ?serviceType=service on ITS url but forgets to forward it into the
+  // iframe src, the referrer (when the host's referrer policy preserves it) still carries the param.
+  const initialDept = (
+    params.get("serviceType") ?? params.get("department") ?? referrerServiceType() ?? "sales"
+  ).toLowerCase()
 
   const [department, setDepartment] = useState(initialDept === "service" ? "service" : "sales")
   const [items, setItems] = useState<ActionItem[] | undefined>(undefined)
@@ -48,6 +71,11 @@ function ActionItemsApp() {
   // `department=` param if present, so the URL never carries both names at once. Skip the very
   // first render so opening a URL that omits `serviceType` doesn't immediately rewrite it — only
   // an actual toggle click updates the URL.
+  //
+  // IFRAME NOTE: this rewrites the IFRAME's own URL. The browser address bar belongs to the HOST
+  // page, which a cross-origin iframe cannot touch — so we ALSO notify the host via postMessage
+  // ("serviceTypeChange", below) and the host syncs its own URL. Without that host listener, the
+  // address bar cannot change; that's a browser security boundary, not a bug here.
   const skipFirstUrlSync = useRef(true)
   useEffect(() => {
     if (skipFirstUrlSync.current) { skipFirstUrlSync.current = false; return }
@@ -55,8 +83,26 @@ function ActionItemsApp() {
     next.set("serviceType", department)
     next.delete("department")
     router.replace(`${pathname}?${next.toString()}`, { scroll: false })
+    // Tell the embedding host the department changed so it can sync ITS url (the address bar).
+    postToHost({ source: "action-items-console", type: "serviceTypeChange", serviceType: department })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [department])
+
+  // Host → iframe bridge: the host can switch the department at any time (e.g. its own tabs, or a
+  // deep-link it resolved after load) by posting { type: "setServiceType", serviceType } to this
+  // iframe. On mount we announce readiness + our initial department so the host can reconcile.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data
+      if (!d || typeof d !== "object" || d.type !== "setServiceType") return
+      const v = String(d.serviceType ?? "").toLowerCase()
+      if (v === "sales" || v === "service") setDepartment(v)
+    }
+    window.addEventListener("message", onMessage)
+    postToHost({ source: "action-items-console", type: "ready", serviceType: department })
+    return () => window.removeEventListener("message", onMessage)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Re-fetch whenever scope OR department changes. Department toggle → items:undefined → loading → view.
   useEffect(() => {

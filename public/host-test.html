@@ -1,0 +1,24 @@
+<!doctype html>
+<!-- TEMP test harness for the host<->iframe department bridge. Not for production. -->
+<meta charset="utf-8"><title>host-test</title>
+<body style="margin:0;font-family:sans-serif">
+<div id="bar" style="padding:6px 10px;background:#eee;font-size:12px">host url: <span id="u"></span> · last msg: <span id="m">none</span></div>
+<iframe id="f" style="border:0;width:100%;height:90vh"></iframe>
+<script>
+  const st = new URLSearchParams(location.search).get("serviceType") ?? "sales";
+  document.getElementById("f").src = "/?enterpriseId=ENT_TEST&teamId=TEAM_TEST&serviceType=" + st;
+  const paint = () => document.getElementById("u").textContent = location.search;
+  paint();
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (d?.source !== "action-items-console") return;
+    document.getElementById("m").textContent = d.type + ":" + d.serviceType;
+    if (d.type === "serviceTypeChange") {
+      const url = new URL(location.href);
+      url.searchParams.set("serviceType", d.serviceType);
+      history.replaceState(null, "", url);
+      paint();
+    }
+  });
+</script>
+</body>

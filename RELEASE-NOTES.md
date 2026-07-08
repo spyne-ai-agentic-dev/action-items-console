@@ -33,6 +33,43 @@ in-app Sales/Service toggle **writes `serviceType` back to the URL** on every sw
 legacy `department=`), so the current view is always a shareable, deep-linkable URL — e.g. for an
 email/SMS template that needs to land a rep directly on the Service tab.
 
+### Host ⇄ iframe department sync (REQUIRED for the address bar to change)
+
+The toggle rewrites the **iframe's own** URL. The browser address bar belongs to the **host page**
+(`uat-console.spyne.xyz/converse-ai/...`), which a cross-origin iframe **cannot** modify — that's a
+browser security boundary. So the console runs a postMessage bridge, and the host must do two
+small things:
+
+**1. Forward `serviceType` into the iframe src** (today the host URL can say `serviceType=service`
+while the iframe never receives it and defaults to Sales):
+```js
+const st = new URLSearchParams(location.search).get("serviceType") ?? "sales";
+iframe.src = `https://<console-host>/?env=…&enterpriseId=…&teamId=…&token=…&serviceType=${st}`;
+```
+
+**2. Listen for toggle changes and sync the host URL:**
+```js
+window.addEventListener("message", (e) => {
+  const d = e.data;
+  if (d?.source !== "action-items-console" || d.type !== "serviceTypeChange") return;
+  const url = new URL(location.href);
+  url.searchParams.set("serviceType", d.serviceType);
+  history.replaceState(null, "", url);
+});
+```
+
+Messages the console **emits** to the host: `{ source: "action-items-console", type: "ready" |
+"serviceTypeChange", serviceType: "sales" | "service" }` (`ready` fires once on mount with the
+initial department). Message the console **accepts** from the host, to switch the department at
+any time: `{ type: "setServiceType", serviceType: "sales" | "service" }`. As a best-effort
+fallback the console also reads `?serviceType=` from `document.referrer` when the host forgets to
+forward it — but referrer policies usually strip the query cross-origin, so step 1 is the
+reliable path.
+
+A working reference host lives at **`/host-test.html`** (e.g.
+`https://<console-host>/host-test.html?serviceType=service`) — it forwards the param, syncs its
+URL on toggle, and demonstrates `setServiceType`; open it to see the expected end-to-end behavior.
+
 ### Environment → backend base URL
 | `env` | Base URL |
 |---|---|
