@@ -26,32 +26,47 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
   return { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(extra || {}) }
 }
 
+/**
+ * Pending items — paginated through the FULL backlog, not a single page. The old flat limit=100
+ * fetch caused the "resolve → refresh → count is back" illusion: this rooftop has 1,224 pending
+ * items, so resolving one just let the next item refill the first page — the displayed count was
+ * the PAGE SIZE, never the true backlog, even though the resolve persisted fine in the DB.
+ * Server sorts createdAt DESC, so with a hard cap the dropped tail would be the OLDEST (longest-
+ * breached — the highest-priority) items; the 20-page/4000-item backstop exists only against
+ * runaway rooftops.
+ */
 export async function fetchActionItems(): Promise<ActionItem[] | null> {
   const scope = getEmbedScope()
   if (!scope) return null // no embed scope (missing token/enterpriseId/teamId) → caller uses mock
 
-  const url = new URL(`${apiBaseForEnv(scope.env)}/conversation/action-items`)
-  url.searchParams.set("enterpriseId", scope.enterpriseId)
-  url.searchParams.set("teamId", scope.teamId)
-  url.searchParams.set("isCompleted", "false")
-  url.searchParams.set("groupByCustomer", "false")
-  url.searchParams.set("limit", "100")
-  // Department is applied client-side (action items have no department field) — not sent here.
-
-  const res = await fetch(url.toString(), {
-    method: "GET",
-    headers: { Authorization: `Bearer ${scope.token}`, Accept: "application/json" },
-    cache: "no-store",
-  })
-  if (!res.ok) throw new Error(`GET /conversation/action-items → ${res.status}`)
-
-  const body = await res.json()
-  // Flat: { data: [...] } · Grouped: { data: [{ actionItems: [...] }], grouped: true }
-  const raw: any[] = Array.isArray(body?.data)
-    ? body.grouped
-      ? body.data.flatMap((g: any) => g?.actionItems ?? [])
-      : body.data
-    : []
+  const base = apiBaseForEnv(scope.env)
+  const headers = { Authorization: `Bearer ${scope.token}`, Accept: "application/json" }
+  const pageSize = 200
+  const maxPages = 20
+  let raw: any[] = []
+  for (let page = 1; page <= maxPages; page++) {
+    const url = new URL(`${base}/conversation/action-items`)
+    url.searchParams.set("enterpriseId", scope.enterpriseId)
+    url.searchParams.set("teamId", scope.teamId)
+    url.searchParams.set("isCompleted", "false")
+    url.searchParams.set("groupByCustomer", "false")
+    url.searchParams.set("limit", String(pageSize))
+    url.searchParams.set("page", String(page))
+    // Department is applied client-side (action items have no department field) — not sent here.
+    const res = await fetch(url.toString(), { method: "GET", headers, cache: "no-store" })
+    if (!res.ok) {
+      if (page === 1) throw new Error(`GET /conversation/action-items → ${res.status}`)
+      break // partial backlog is better than an error mid-pagination
+    }
+    const body = await res.json()
+    // Flat: { data: [...] } · Grouped: { data: [{ actionItems: [...] }], grouped: true }
+    const batch: any[] = Array.isArray(body?.data)
+      ? body.grouped ? body.data.flatMap((g: any) => g?.actionItems ?? []) : body.data
+      : []
+    raw = raw.concat(batch)
+    const totalPages = Number(body?.pagination?.totalPages ?? 1)
+    if (batch.length < pageSize || page >= totalPages) break
+  }
 
   // Merge live customer/assignee lookups into the shared maps so the console resolves
   // names/phones/initials for live ids (mock entries remain, harmlessly unused).
