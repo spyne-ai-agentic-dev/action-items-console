@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Action Items Console — QA Review Checklist</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --surface:#fff; --surface2:#fbfbfe; --ink:#171526; --body:#3a3650; --muted:#7c7893;
+    --border:#e7e4f1; --border2:#d8d4e8; --accent:#4600f2; --accent-soft:#eee9ff; --accent-ink:#3a00c9;
+    --pass:#0e7c52; --pass-soft:#e2f3eb; --fail:#c0392b; --fail-soft:#fbe8e5;
+    --hi:#b3402f; --hi-soft:#fbe8e5; --med:#8a6a00; --med-soft:#fff4d6; --lo:#5b5570; --lo-soft:#eef0f4;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f0e17; --surface:#1a1826; --surface2:#211f30; --ink:#f2f0fa; --body:#c9c5db; --muted:#948fab;
+      --border:#2c2941; --border2:#3a3654; --accent:#8b6dff; --accent-soft:#241d3f; --accent-ink:#c7b8ff;
+      --pass:#43c98a; --pass-soft:#123227; --fail:#ff7a6b; --fail-soft:#331a18;
+      --hi:#ff8a7a; --hi-soft:#331a18; --med:#e8c96a; --med-soft:#332b12; --lo:#a59fbf; --lo-soft:#232132; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px 18px 80px}
+  header h1{font-size:22px;font-weight:800;margin:0 0 4px;letter-spacing:-.01em}
+  header p{margin:0;color:var(--muted);font-size:13px}
+  .bar{position:sticky;top:0;z-index:20;background:var(--bg);padding:12px 0 10px;margin-bottom:10px;border-bottom:1px solid var(--border)}
+  .progwrap{display:flex;align-items:center;gap:12px;margin:10px 0}
+  .progtrack{flex:1;height:10px;border-radius:99px;background:var(--border);overflow:hidden}
+  .progfill{height:100%;width:0;background:linear-gradient(90deg,var(--pass),var(--accent));transition:width .3s}
+  .progtxt{font-size:12.5px;font-weight:700;color:var(--body);white-space:nowrap;min-width:150px;text-align:right}
+  .controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chip{border:1px solid var(--border2);background:var(--surface);color:var(--body);border-radius:99px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .spacer{flex:1}
+  .btn{border:1px solid var(--border2);background:var(--surface);color:var(--body);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}
+  .sec-h{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:22px 0 8px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
+  .card.pass{border-color:var(--pass)}
+  .card.fail{border-color:var(--fail)}
+  .row{display:flex;align-items:flex-start;gap:12px;padding:13px 15px}
+  .idcol{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:52px}
+  .id{font-weight:800;font-size:14px}
+  .sev{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:5px}
+  .sev.high{background:var(--hi-soft);color:var(--hi)} .sev.medium{background:var(--med-soft);color:var(--med)}
+  .sev.low{background:var(--lo-soft);color:var(--lo)} .sev.info{background:var(--lo-soft);color:var(--lo)}
+  .main{flex:1;min-width:0}
+  .area{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .desc{font-weight:650;margin:2px 0 0;font-size:14.5px}
+  .actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;align-items:center}
+  .sbtn{border:1px solid var(--border2);background:var(--surface2);border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;color:var(--body);display:inline-flex;align-items:center;gap:5px}
+  .sbtn.pass.act{background:var(--pass-soft);border-color:var(--pass);color:var(--pass)}
+  .sbtn.fail.act{background:var(--fail-soft);border-color:var(--fail);color:var(--fail)}
+  .sbtn.shot{margin-left:auto}
+  .sbtn.shot.has{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+  .toggle{background:none;border:none;color:var(--accent-ink);font-size:12.5px;font-weight:700;cursor:pointer;padding:4px 0}
+  .details{display:none;padding:0 15px 14px 79px;font-size:13.5px;color:var(--body)}
+  .details.open{display:block}
+  .details h4{margin:12px 0 5px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .details ol{margin:0;padding-left:20px} .details ol li{margin:3px 0}
+  .details .kv{margin:3px 0} .details .kv b{color:var(--ink)}
+  .exp{background:var(--pass-soft);border-left:3px solid var(--pass);border-radius:6px;padding:8px 11px;margin-top:4px;color:var(--pass)}
+  .note{width:100%;margin-top:6px;border:1px solid var(--border2);border-radius:7px;background:var(--surface2);color:var(--ink);padding:7px 9px;font:inherit;font-size:12.5px;resize:vertical;min-height:38px}
+  .commit{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted)}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(10,8,20,.6);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.open{display:flex}
+  .sheet{background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:900px;width:100%;max-height:90vh;overflow:auto;padding:18px}
+  .sheet-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .sheet-h .id{font-size:16px}
+  .sheet-h .x{margin-left:auto;border:none;background:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1}
+  .refbox{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--body);margin-bottom:12px}
+  .shotimg{width:100%;border-radius:10px;border:1px solid var(--border);display:block}
+  .drop{border:2px dashed var(--border2);border-radius:12px;padding:34px 16px;text-align:center;color:var(--muted);font-size:13.5px;cursor:pointer}
+  .drop.hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+  .rowbtns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  footer{margin-top:26px;text-align:center;color:var(--muted);font-size:12px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Action Items Console — QA Review</h1>
+    <p>Tick each item Pass/Fail, add notes, and attach a screenshot. Progress is saved in this browser (localStorage).</p>
+  </header>
+
+  <div class="bar">
+    <div class="progwrap">
+      <div class="progtrack"><div class="progfill" id="progfill"></div></div>
+      <div class="progtxt" id="progtxt">0 / 0 verified</div>
+    </div>
+    <div class="controls">
+      <button class="chip on" data-filter="all">All</button>
+      <button class="chip" data-filter="untested">Untested</button>
+      <button class="chip" data-filter="pass">Passed</button>
+      <button class="chip" data-filter="fail">Failed</button>
+      <span class="spacer"></span>
+      <button class="btn" id="expandAll">Expand all</button>
+      <button class="btn" id="exportBtn">Export results</button>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <div id="list"></div>
+  <footer>Internal QA checklist · progress stored locally in your browser · Vini AI by Spyne</footer>
+</div>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <div class="sheet-h">
+      <span class="id" id="mId"></span>
+      <span id="mArea" style="color:var(--muted);font-size:13px"></span>
+      <button class="x" id="mClose">&times;</button>
+    </div>
+    <div class="refbox" id="mRef"></div>
+    <div id="mImgWrap"></div>
+    <div class="drop" id="mDrop">Drag &amp; drop a screenshot here, or click to choose a file<br><span style="font-size:11.5px">(or add <code id="mPath"></code> next to this HTML file)</span></div>
+    <input type="file" id="mFile" accept="image/*" class="hidden" />
+    <div class="rowbtns" id="mBtns"></div>
+  </div>
+</div>
+
+<script>
+const ISSUES = [
+  {s:"A",id:"A1",sev:"high",area:"Customer drawer",desc:"Customer drawer showed the same name for everyone",cause:"Name read via find() over ALL items, not the clicked customer.",fix:"Name+phone read from the clicked customer's own items.",commit:"85ec778",steps:["Unresolved tab.","Click Customer A — note drawer header name + phone.","Close, click Customer B — header must show B.","Repeat for 3–4 customers."],exp:"Drawer header name + phone always match the clicked row.",ref:"Customer drawer header (name + phone) next to the clicked queue row."},
+  {s:"A",id:"A2",sev:"high",area:"Call drawer",desc:"Listen/Transcript could play a different call",cause:"On call-id load failure it fell back to the customer's latest call.",fix:"Fallback only when the item has no call id, shown with an amber banner; else evidence excerpt.",commit:"5784d7f",steps:["Open an item WITH a recording → Listen → confirm correct call, no banner.","Open a call item with NO linked call → amber banner appears."],exp:"Transcript/recording always the same customer; fallback clearly labelled.",ref:"Drawer showing the amber fallback banner (and one normal call, no banner)."},
+  {s:"A",id:"A3",sev:"medium",area:"Call drawer",desc:"Browse all conversations → clicking a call did nothing",cause:"Report fetch keyed off the item, not the clicked call.",fix:"Drilling into a call fetches that call's report.",commit:"5784d7f",steps:["Open call drawer → Browse all N conversations.","Click a different call → its detail loads.","Back, pick another → it updates."],exp:"Each drilled call loads its own report.",ref:"The browse-conversations list + a drilled call's loaded detail."},
+  {s:"A",id:"A4",sev:"medium",area:"Call drawer",desc:"Sales item resolved against Service conversations",cause:"Conversation lookup defaulted to the global service dept.",fix:"Lookup uses the item's own department.",commit:"5784d7f",steps:["On a Sales item, open the drawer → confirm sales-side conversations.","Repeat on a Service item."],exp:"Conversations match the item's department.",ref:"Drawer on a Sales item showing sales conversations."},
+  {s:"A",id:"A5",sev:"medium",area:"Queue / pagination",desc:"Item appeared twice / inflated repeat-caller count",cause:"Paged fetch had no dedup; a boundary row was fetched twice.",fix:"Items de-duplicated by id across pages.",commit:"5784d7f",steps:["On a large multi-page rooftop, scroll the full queue.","Confirm no duplicate rows; counts look sane."],exp:"No duplicate rows.",ref:"Queue with the group/total count header."},
+  {s:"A",id:"A6",sev:"medium",area:"Repeat callers",desc:"One-time contact labelled an N-time repeat caller",cause:"Counted raw items, not distinct conversations.",fix:"Counts distinct conversations/calls per customer.",commit:"5784d7f",steps:["Customer whose items came from ONE call/email → badge should read ×1.","Customer with separate calls → true count."],exp:"×N reflects distinct outreaches.",ref:"A queue card showing the repeat-caller ×N badge."},
+  {s:"A",id:"A7",sev:"low",area:"Drawers",desc:"Panel could keep a previous item's/customer's state",cause:"Drawers not keyed by id.",fix:"Both drawers remount per item/customer.",commit:"5784d7f",steps:["Rapidly open different customers, then items, in succession.","Confirm no content carries over."],exp:"No stale content carries over.",ref:"Two drawers before/after switching."},
+  {s:"A",id:"A8",sev:"low",area:"Queue search",desc:"Searching a customer not in the queue selected the wrong one",cause:"Search built from the global map, not the scoped queue.",fix:"Candidates come from the scoped queue items.",commit:"5784d7f",steps:["Queue search: type a name/phone.","Click a result."],exp:"The exact customer is selected.",ref:"Search dropdown + the selected customer in the right pane."},
+  {s:"A",id:"A9",sev:"low",area:"Customer data",desc:"Customer name/phone degraded to 'Customer'/blank",cause:"A later sparse duplicate overwrote a good value.",fix:"Merge-fill instead of last-write-wins.",commit:"5784d7f",steps:["Load, refresh, switch depts and back."],exp:"Names/phones stay populated.",ref:"Queue with populated customer names after a refresh."},
+  {s:"A",id:"A10",sev:"low",area:"Customer drawer",desc:"'View full customer profile' button did nothing",cause:"Linked to a route that doesn't exist inside the iframe.",fix:"Removed the non-working CTA.",commit:"f831665",steps:["Open the customer drawer → scroll to the footer."],exp:"No 'View full customer profile' button.",ref:"Customer drawer footer (no CTA)."},
+  {s:"A",id:"A11",sev:"medium",area:"Customer drawer",desc:"Customer drawer count didn't match the queue (showed all departments)",cause:"Drawer counted items across all departments; the queue is department-scoped.",fix:"Drawer open/resolved/repeat sets scoped to the active department.",commit:"e378263",steps:["On the Sales tab, find a customer with both Sales and Service items.","Note the queue card count (e.g. '3 items').","Open that customer's drawer → OPEN ITEMS stat + list must show the same count, not a larger all-department number.","Switch to Service and repeat."],exp:"Drawer count = the queue count for the active department.",ref:"The drawer OPEN ITEMS stat next to the queue card count for the same customer."},
+  {s:"B",id:"B1",sev:"high",area:"Persistence",desc:"Resolved/Incorrect disappeared after refresh / dept switch",cause:"Session-only state.",fix:"Read from the DB (completed items with a console resolution).",commit:"a634003, 0211b31",steps:["Resolve an item → refresh → still under Resolved.","Flag one Incorrect → refresh → still there.","Switch Sales↔Service and back → both persist."],exp:"Both persist across refresh and dept switch.",ref:"Resolved tab after a refresh showing the resolved item."},
+  {s:"B",id:"B2",sev:"high",area:"Counts",desc:"Count reverted on refresh after resolving",cause:"Total computed from a partial page.",fix:"Pending fetch paginates the full backlog.",commit:"1be01c5",steps:["Resolve several items → note the count drops.","Refresh → count stays reduced."],exp:"Count stays reduced.",ref:"Unresolved tab count before/after refresh."},
+  {s:"B",id:"B3",sev:"medium",area:"Routing",desc:"Separate deep-links for Sales/Service",cause:"serviceType not canonical.",fix:"serviceType is canonical; toggle writes it back.",commit:"7b1ab1b, 6c4130c",steps:["Load ?serviceType=service → Service active.","Toggle to Sales → URL updates to serviceType=sales.","Deep-link both."],exp:"URL and active tab stay in sync.",ref:"Address bar + active tab for each department."},
+  {s:"B",id:"B4",sev:"medium",area:"Dept filtering",desc:"Service tab showed Sales items (and vice-versa)",cause:"Dept derived from the shared intent code.",fix:"Per-item department from service_type.",commit:"6c4130c, fd6585b",steps:["In Service, spot-check items are all service.","In Sales, all sales."],exp:"No cross-department bleed.",ref:"Service queue with intent/department badges."},
+  {s:"B",id:"B5",sev:"medium",area:"Host integration",desc:"Address bar didn't sync with the toggle (iframe)",cause:"No host↔iframe bridge.",fix:"postMessage bridge; host must apply HOST-INTEGRATION.md.",commit:"21fd29e, d3177b4",steps:["With the host patch applied, toggle → parent address bar updates.","Without it, iframe works but the address bar won't change (browser boundary)."],exp:"Address bar syncs once host is patched.",ref:"Host address bar before/after toggle (once host patched). [Blocked on host]"},
+  {s:"B",id:"B6",sev:"medium",area:"Recording",desc:"'No recording available' when a recording existed",cause:"Recording URL was relative; the player rejected it.",fix:"Absolute URL via the same-origin proxy.",commit:"747e4e7",steps:["Open an item with a recording → Listen → it plays."],exp:"Recording plays.",ref:"Drawer waveform player playing."},
+  {s:"B",id:"B7",sev:"medium",area:"SMS",desc:"SMS/chat items not showing / mis-channelled",cause:"SMS channel misclassification.",fix:"SMS classification fixed; thread attached.",commit:"fd6585b",steps:["Set Channel = SMS → SMS items appear with the message thread."],exp:"SMS items appear under Channel = SMS.",ref:"Queue filtered to Channel=SMS + an SMS drawer thread."},
+  {s:"B",id:"B8",sev:"medium",area:"Sorting",desc:"Queue not ordered by urgency",cause:"No breach-based sort.",fix:"Sort by longest SLA breach first (absolute overdue).",commit:"fd6585b",steps:["Confirm the top of the queue is the most-overdue customer."],exp:"Most-overdue first.",ref:"Queue top showing the longest-overdue item first."},
+  {s:"B",id:"B9",sev:"medium",area:"Search",desc:"Couldn't search by phone number",cause:"No phone search.",fix:"Phone search ignoring formatting and +1.",commit:"fd6585b",steps:["Search 2162022537 → finds +1 216-202-2537."],exp:"Phone query matches.",ref:"Search box with a phone query + matching result."},
+  {s:"B",id:"B10",sev:"medium",area:"Filters",desc:"Callbacks chip missed items; Listen wrongly disabled",cause:"Chip matched wrong intents; Listen gated on channel.",fix:"Chip matches all callback intents; Listen enabled when a call is resolvable.",commit:"115b07e",steps:["Click the Callbacks chip → all callback-type items appear.","On an item with a call, Listen is enabled."],exp:"Callbacks complete; Listen enabled.",ref:"Callbacks chip active + an item with Listen enabled."},
+  {s:"B",id:"B11",sev:"low",area:"Product change",desc:"'At-risk' tagging/filter removed",cause:"Product call.",fix:"Removed At-risk chip + filter.",commit:"c2811d3",steps:["Confirm no At-risk chip anywhere."],exp:"No At-risk chip.",ref:"The quick-chip row (no At-risk)."},
+  {s:"B",id:"B12",sev:"low",area:"Product change",desc:"Manager/My-queue toggle removed",cause:"Product call.",fix:"Removed the scope toggle.",commit:"fd6585b",steps:["Confirm no Manager/My-queue toggle."],exp:"No toggle.",ref:"Header row (no toggle)."},
+  {s:"B",id:"B13",sev:"low",area:"Assignment",desc:"Resolver identity for auto-assign",cause:"Token carries no user identity.",fix:"Resolver taken from session identity (userId/userEmail).",commit:"fd6585b",steps:["Resolve an item → the acting user is recorded as owner/assignee."],exp:"Acting user recorded.",ref:"Resolved item showing 'Action taken by <user>'."},
+  {s:"C",id:"C1",sev:"info",area:"Deferred",desc:"customer_id can fall back to lead_id; same person may split",cause:"Backend id semantics.",fix:"Not changed — needs BE confirmation.",commit:"",steps:["Product/backend decision — no fix to verify."],exp:"—",ref:"Two cards for one person (if observed)."},
+  {s:"C",id:"C2",sev:"info",area:"Deferred",desc:"'Repeat caller' is a same-session proxy, not a lifetime count",cause:"Backend exposes no call-history count.",fix:"Not changed — confirm acceptable or add a BE count.",commit:"",steps:["Product/backend decision — no fix to verify."],exp:"—",ref:"×N badge for context."},
+  {s:"C",id:"C3",sev:"info",area:"Deferred",desc:"Host↔iframe URL sync needs converse-ai to apply HOST-INTEGRATION.md",cause:"Host-side change outside this repo.",fix:"Handover doc provided.",commit:"",steps:["Host-team action — no fix to verify here."],exp:"—",ref:"Host address bar."}
+];
+const SECTIONS = {A:"A · Latest audit — wrong-entity / stale-state", B:"B · Earlier batches", C:"C · Deferred (need product/backend input)"};
+
+const LS = "aic-qa-review-v1";
+let state = JSON.parse(localStorage.getItem(LS) || "{}"); // { A1:{status,note,shot}, ... }
+function save(){ localStorage.setItem(LS, JSON.stringify(state)); }
+function get(id){ return state[id] || (state[id]={status:"",note:"",shot:""}); }
+
+let filter="all", modalId=null;
+const listEl=document.getElementById("list");
+
+function render(){
+  listEl.innerHTML="";
+  let shown=0;
+  for(const sec of ["A","B","C"]){
+    const items=ISSUES.filter(i=>i.s===sec && passFilter(i));
+    if(!items.length) continue;
+    const h=document.createElement("div"); h.className="sec-h"; h.textContent=SECTIONS[sec]; listEl.appendChild(h);
+    for(const it of items){ listEl.appendChild(card(it)); shown++; }
+  }
+  if(!shown){ const e=document.createElement("p"); e.style.color="var(--muted)"; e.style.textAlign="center"; e.style.padding="30px"; e.textContent="No items match this filter."; listEl.appendChild(e); }
+  updateProgress();
+}
+function passFilter(it){
+  const st=get(it.id).status;
+  if(filter==="all") return true;
+  if(filter==="untested") return !st;
+  return st===filter;
+}
+function card(it){
+  const d=get(it.id);
+  const el=document.createElement("div"); el.className="card"+(d.status?" "+d.status:"");
+  el.innerHTML=`
+    <div class="row">
+      <div class="idcol"><span class="id">${it.id}</span><span class="sev ${it.sev}">${it.sev}</span></div>
+      <div class="main">
+        <div class="area">${it.area}</div>
+        <div class="desc">${it.desc}</div>
+        <div class="actions">
+          <button class="sbtn pass${d.status==="pass"?" act":""}" data-act="pass">✓ Pass</button>
+          <button class="sbtn fail${d.status==="fail"?" act":""}" data-act="fail">✗ Fail</button>
+          <button class="sbtn shot${d.shot?" has":""}" data-act="shot">📷 ${d.shot?"View screenshot":"Screenshot"}</button>
+        </div>
+        <button class="toggle" data-act="toggle">▸ Steps &amp; details</button>
+        <div class="details">
+          <h4>Steps to reproduce / verify</h4>
+          <ol>${it.steps.map(s=>`<li>${s}</li>`).join("")}</ol>
+          <div class="exp"><b>Expected (fixed):</b> ${it.exp}</div>
+          <h4>Root cause</h4><div class="kv">${it.cause}</div>
+          <h4>Fix</h4><div class="kv">${it.fix} ${it.commit?`<span class="commit">(${it.commit})</span>`:""}</div>
+          <h4>Screenshot reference</h4><div class="kv">${it.ref}</div>
+          <h4>Notes</h4>
+          <textarea class="note" placeholder="QA notes…">${(d.note||"").replace(/</g,"&lt;")}</textarea>
+        </div>
+      </div>
+    </div>`;
+  el.querySelector('[data-act="pass"]').onclick=()=>setStatus(it.id,"pass");
+  el.querySelector('[data-act="fail"]').onclick=()=>setStatus(it.id,"fail");
+  el.querySelector('[data-act="shot"]').onclick=()=>openModal(it.id);
+  const det=el.querySelector(".details");
+  el.querySelector('[data-act="toggle"]').onclick=(e)=>{ det.classList.toggle("open"); e.target.textContent=(det.classList.contains("open")?"▾":"▸")+" Steps & details"; };
+  el.querySelector(".note").oninput=(e)=>{ get(it.id).note=e.target.value; save(); };
+  return el;
+}
+function setStatus(id,st){ const d=get(id); d.status = d.status===st ? "" : st; save(); render(); }
+function updateProgress(){
+  const total=ISSUES.length;
+  const done=ISSUES.filter(i=>{const s=get(i.id).status;return s==="pass"||s==="fail";}).length;
+  const pass=ISSUES.filter(i=>get(i.id).status==="pass").length;
+  const fail=ISSUES.filter(i=>get(i.id).status==="fail").length;
+  document.getElementById("progfill").style.width=(done/total*100)+"%";
+  document.getElementById("progtxt").textContent=`${done} / ${total} verified · ${pass} pass · ${fail} fail`;
+}
+
+/* filters */
+document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+  document.querySelectorAll(".chip").forEach(x=>x.classList.remove("on")); c.classList.add("on");
+  filter=c.dataset.filter; render();
+});
+document.getElementById("expandAll").onclick=()=>{
+  const any=document.querySelector(".details.open");
+  document.querySelectorAll(".details").forEach(d=>d.classList.toggle("open",!any));
+  document.querySelectorAll('[data-act="toggle"]').forEach(t=>t.textContent=(!any?"▾":"▸")+" Steps & details");
+};
+document.getElementById("resetBtn").onclick=()=>{ if(confirm("Clear all QA progress (status, notes, screenshots) in this browser?")){ state={}; save(); render(); } };
+document.getElementById("exportBtn").onclick=exportResults;
+
+function exportResults(){
+  const rows=[["ID","Severity","Area","Description","Status","Notes","HasScreenshot","Commit"]];
+  for(const it of ISSUES){ const d=get(it.id); rows.push([it.id,it.sev,it.area,it.desc,d.status||"untested",(d.note||"").replace(/\n/g," "),d.shot?"yes":"no",it.commit]); }
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="qa-results.csv"; a.click();
+}
+
+/* screenshot modal — tries screenshots/<ID>.png, then a locally-attached image; supports upload */
+const modal=document.getElementById("modal"), mImgWrap=document.getElementById("mImgWrap"),
+  mDrop=document.getElementById("mDrop"), mFile=document.getElementById("mFile"), mBtns=document.getElementById("mBtns");
+function openModal(id){
+  modalId=id; const it=ISSUES.find(i=>i.id===id), d=get(id);
+  document.getElementById("mId").textContent=id;
+  document.getElementById("mArea").textContent=it.area;
+  document.getElementById("mRef").innerHTML=`<b>What to capture:</b> ${it.ref}`;
+  document.getElementById("mPath").textContent="screenshots/"+id+".png";
+  showImage(id,d);
+  modal.classList.add("open");
+}
+function showImage(id,d){
+  mImgWrap.innerHTML=""; mBtns.innerHTML="";
+  const tryPath="screenshots/"+id+".png";
+  const done=(src)=>{
+    const img=document.createElement("img"); img.className="shotimg"; img.src=src; mImgWrap.appendChild(img);
+    mDrop.classList.add("hidden");
+    const rep=document.createElement("button"); rep.className="btn"; rep.textContent="Replace"; rep.onclick=()=>{mDrop.classList.remove("hidden");mImgWrap.innerHTML="";}; mBtns.appendChild(rep);
+    if(d.shot){ const rm=document.createElement("button"); rm.className="btn"; rm.textContent="Remove"; rm.onclick=()=>{d.shot="";save();showImage(id,d);render();}; mBtns.appendChild(rm); }
+  };
+  // prefer a repo file if it loads, else the attached data URL, else the upload prompt
+  const probe=new Image();
+  probe.onload=()=>done(tryPath);
+  probe.onerror=()=>{ if(d.shot){ done(d.shot); } else { mDrop.classList.remove("hidden"); } };
+  probe.src=tryPath;
+}
+mDrop.onclick=()=>mFile.click();
+mFile.onchange=(e)=>{ if(e.target.files[0]) readFile(e.target.files[0]); };
+["dragover","dragenter"].forEach(ev=>mDrop.addEventListener(ev,e=>{e.preventDefault();mDrop.classList.add("hover");}));
+["dragleave","drop"].forEach(ev=>mDrop.addEventListener(ev,e=>{e.preventDefault();mDrop.classList.remove("hover");}));
+mDrop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) readFile(f); });
+function readFile(f){
+  if(!f.type.startsWith("image/")) return alert("Please choose an image.");
+  const r=new FileReader();
+  r.onload=()=>{ const d=get(modalId); d.shot=r.result; save(); showImage(modalId,d); render(); };
+  r.readAsDataURL(f);
+}
+document.getElementById("mClose").onclick=()=>modal.classList.remove("open");
+modal.onclick=(e)=>{ if(e.target===modal) modal.classList.remove("open"); };
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") modal.classList.remove("open"); });
+
+render();
+</script>
+</body>
+</html>

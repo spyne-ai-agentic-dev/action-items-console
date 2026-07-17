@@ -113,6 +113,18 @@ Each item has a **Screenshot ref** — the screen + element to capture and a fil
 - **Expected (fixed):** there is **no** "View full customer profile" button.
 - **Screenshot ref:** `screenshots/A10.png` — customer drawer **footer** (no CTA).
 
+### A11 🟠 Customer drawer count didn't match the queue (showed all departments)
+- **What was wrong:** for a customer with items in both Sales and Service, the customer drawer showed e.g. **8 open items** while the Sales queue showed **3** for the same customer.
+- **Root cause:** the drawer counted/listed the customer's items across **all** departments; the queue is department-scoped.
+- **Fix:** the drawer's open/resolved/repeat sets are now scoped to the active department (matches the queue). *(commit e378263)*
+- **Steps to reproduce / verify:**
+  1. On the **Sales** tab, find a customer who has both Sales and Service items.
+  2. Note the queue card count (e.g. "3 items").
+  3. Open that customer's drawer → the **OPEN ITEMS** stat and list must show the **same 3**, not a larger all-department number.
+  4. Switch to **Service** and repeat — the drawer now reflects the Service count.
+- **Expected (fixed):** drawer count = the queue count for the active department.
+- **Screenshot ref:** `screenshots/A11.png` — the drawer **OPEN ITEMS** stat next to the queue card count for the same customer.
+
 ---
 
 # B · Earlier batches
