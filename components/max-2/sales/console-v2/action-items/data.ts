@@ -25,6 +25,7 @@ export interface ActionItem {
   action_item_id: string;
   customer_id: string;
   customer_name?: string;
+  customer_phone?: string;
   lead_id?: string; // BE lead id — needed by the assignment API
   source_channel: Channel;
   intent_id: IntentId;

@@ -106,6 +106,7 @@ export function mapBeItem(doc: any): ActionItem {
     customer_id: String(meta.customer_id ?? customer.customer_id ?? doc?.lead_id ?? ""),
     lead_id: doc?.lead_id ?? meta.lead_id ?? undefined,
     customer_name: customer.name ?? meta.customer_name ?? undefined,
+    customer_phone: customer.mobile ?? meta.customer_phone ?? undefined,
     source_channel: channel,
     intent_id: resolveIntent(doc, meta),
     is_primary_intent_of_source: meta.is_primary_intent_of_source ?? true,

@@ -73,10 +73,14 @@ export default function CustomerSidebar({ customerId, items, onClose, onViewProf
   }, [])
 
   // New customers minted as c-<slug> ids aren't in the CUSTOMERS map, so prefer
-  // the typed display name carried on the item. (items is already this customer.)
+  // the typed display name carried on the item. `items` is the FULL list, so the
+  // name must be read from THIS customer's own items — a bare find() over all
+  // items would always return whichever customer sorts first (stale-name bug).
   const cust = {
-    name: items?.find((i) => i.customer_name)?.customer_name ?? CUSTOMERS[customerId]?.name ?? humanize(customerId),
-    phone: CUSTOMERS[customerId]?.phone ?? '',
+    name: items?.find((i) => i.customer_id === customerId && i.customer_name)?.customer_name
+      ?? CUSTOMERS[customerId]?.name ?? humanize(customerId),
+    phone: items?.find((i) => i.customer_id === customerId && i.customer_phone)?.customer_phone
+      ?? CUSTOMERS[customerId]?.phone ?? '',
   }
 
   const { open, resolved, repeatCount } = useMemo(() => {
