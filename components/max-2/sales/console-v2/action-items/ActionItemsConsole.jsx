@@ -609,7 +609,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
 
       {/* Floating layers */}
       {sidebarCustomer && (
-        <CustomerSidebar key={sidebarCustomer} customerId={sidebarCustomer} items={items} onClose={() => setSidebarCustomer(null)} />
+        <CustomerSidebar key={sidebarCustomer} customerId={sidebarCustomer} items={items} department={filters.dept} onClose={() => setSidebarCustomer(null)} />
       )}
       {sourceView && (
         <CallConversationDrawer key={sourceView.item.action_item_id} item={sourceView.item} mode={sourceView.mode} onClose={() => setSourceView(null)} />

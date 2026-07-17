@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils'
 import { StatTile, SectionLabel, EmptyState } from '../shared'
 import {
   INTENT_TAXONOMY, DEPT_BADGE, CHANNEL_META, CUSTOMERS, USERS,
-  ageLabel, ageMinutes, isPastSla, slaOverdueMinutes,
+  ageLabel, ageMinutes, isPastSla, slaOverdueMinutes, deptOf,
 } from './data'
 
 /* ── Small inline atoms (kept local so the drawer stays self-contained) ── */
@@ -56,7 +56,7 @@ function Assignee({ userId }) {
 
 /* ── Drawer ──────────────────────────────────────────────────────── */
 
-export default function CustomerSidebar({ customerId, items, onClose }) {
+export default function CustomerSidebar({ customerId, items, onClose, department }) {
   // Close on Escape.
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -84,7 +84,12 @@ export default function CustomerSidebar({ customerId, items, onClose }) {
   }
 
   const { open, resolved, repeatCount } = useMemo(() => {
-    const mine = (items ?? []).filter((i) => i.customer_id === customerId)
+    // Scope to the ACTIVE department so the drawer's counts/list match the (department-scoped)
+    // queue — otherwise a customer with items in both Sales & Service shows e.g. 8 here but 3 in
+    // the Sales queue. `items` is the full cross-department list; deptOf() is the authoritative
+    // per-item department (same key the queue filters on).
+    const inDept = (i) => !department || department === 'all' || deptOf(i) === department
+    const mine = (items ?? []).filter((i) => i.customer_id === customerId && inDept(i))
     const open = mine
       .filter((i) => i.status === 'pending')
       .sort((a, b) => slaOverdueMinutes(b) - slaOverdueMinutes(a)) // longest-breached first (matches queue priority)
@@ -94,7 +99,7 @@ export default function CustomerSidebar({ customerId, items, onClose }) {
     // Highest repeat-caller count we've observed for this customer.
     const repeatCount = mine.reduce((m, i) => Math.max(m, i.repeat_caller_count ?? 0), 0)
     return { open, resolved, repeatCount }
-  }, [items, customerId])
+  }, [items, customerId, department])
 
   if (typeof document === 'undefined') return null
 
