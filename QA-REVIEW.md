@@ -37,6 +37,7 @@ These came out of a systematic audit (4 parallel reviewers) for one bug class: *
 | **A7** | 🟡 | (Hardening) Rare chance a panel keeps a previous item's/customer's state. | Drawers not keyed by id. | Both drawers remount per item/customer. | Rapidly open different customers/items in succession — no stale content carries over. | `5784d7f` |
 | **A8** | 🟡 | (Hardening) Searching a customer who has **no item in the current queue** selected the **wrong** customer. | Search built candidates from the global customer map, not the scoped queue. | Search candidates now come from the items actually in the queue. | In the queue search, type a name/phone; picking a result always selects that exact customer. | `5784d7f` |
 | **A9** | 🟡 | (Hardening) A customer's name/phone could degrade to "Customer"/blank. | A later sparse duplicate record overwrote a good name/phone. | Merge-fill instead of overwrite. | Names/phones stay populated across refreshes and tab switches. | `5784d7f` |
+| **A10** | 🟡 | "View full customer profile" button in the customer drawer **did nothing** when clicked. | It linked to `/max-2/sales/customers`, a route that doesn't exist inside the iframe embed (no handler wired). | Removed the non-working CTA from the drawer footer. | Open the customer drawer → there is no "View full customer profile" button. | `f831665` |
 
 ---
 
