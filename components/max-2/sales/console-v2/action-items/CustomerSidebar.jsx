@@ -6,9 +6,9 @@
  * document.body so its fixed scrim + panel are viewport-relative (ancestor
  * transforms would otherwise create a containing block). Surfaces a stat row
  * (open / resolved / repeat-caller count), the customer's OPEN items as compact
- * rows, a "Recent resolved" mini-list, and a link to the full profile.
+ * rows, and a "Recent resolved" mini-list.
  *
- * Props: { customerId, items, onClose, onViewProfile? }
+ * Props: { customerId, items, onClose }
  *   - items = ALL action items; we filter this customer's items locally.
  */
 
@@ -56,7 +56,7 @@ function Assignee({ userId }) {
 
 /* ── Drawer ──────────────────────────────────────────────────────── */
 
-export default function CustomerSidebar({ customerId, items, onClose, onViewProfile }) {
+export default function CustomerSidebar({ customerId, items, onClose }) {
   // Close on Escape.
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
@@ -244,25 +244,6 @@ export default function CustomerSidebar({ customerId, items, onClose, onViewProf
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex-shrink-0 border-t border-spyne-border px-4 py-3">
-          {onViewProfile ? (
-            <button
-              onClick={() => onViewProfile(customerId)}
-              className="spyne-btn-secondary !h-9 w-full justify-center !text-[12.5px]"
-            >
-              View full customer profile <MaterialSymbol name="arrow_forward" size={14} />
-            </button>
-          ) : (
-            <a
-              href="/max-2/sales/customers"
-              className="spyne-btn-secondary !h-9 w-full justify-center !text-[12.5px]"
-              style={{ textDecoration: 'none' }}
-            >
-              View full customer profile <MaterialSymbol name="arrow_forward" size={14} />
-            </a>
-          )}
-        </div>
       </div>
     </div>
   )
