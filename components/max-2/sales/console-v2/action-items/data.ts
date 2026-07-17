@@ -334,3 +334,28 @@ export function withRepeatCallerCounts(items: ActionItem[]): ActionItem[] {
     return n === it.repeat_caller_count ? it : { ...it, repeat_caller_count: n };
   });
 }
+
+/**
+ * Analytics-safe serializer for an action item — the canonical property bag attached to every
+ * item-scoped PostHog event. Emits ids / booleans / durations ONLY: never the customer name,
+ * phone, source_message, or intent_recap (customer PII / content). See POSTHOG-PLAN.md.
+ */
+export function itemProps(item: ActionItem): Record<string, unknown> {
+  return {
+    action_item_id: item.action_item_id,
+    customer_id: item.customer_id,
+    intent_id: item.intent_id,
+    source_channel: item.source_channel,
+    department: deptOf(item),
+    status: item.status,
+    is_past_sla: isPastSla(item),
+    sla_overdue_minutes: slaOverdueMinutes(item),
+    age_minutes: ageMinutes(item),
+    assignee_user_id: item.assignee_user_id,
+    is_assigned: !!item.assignee_user_id,
+    repeat_caller_count: item.repeat_caller_count,
+    has_call_id: !!item.source_call_id,
+    has_conversation_id: !!item.source_conversation_id,
+    created_by_ai: item.created_by_ai,
+  };
+}

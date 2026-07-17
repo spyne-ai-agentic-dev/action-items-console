@@ -18,6 +18,7 @@ import { FaArrowLeft, FaBolt, FaCalendar, FaClock, FaCopy, FaFileAlt, FaPlayCirc
 import { IoMdCall } from 'react-icons/io'
 import { MdOutlineError } from 'react-icons/md'
 import { CHANNEL_META, ageLabel, ageMinutes } from './data'
+import { track } from '@/lib/analytics'
 import { fetchCallReport, fetchConversations, recordingProxyUrl } from './be-client'
 import { normalizeCallReport } from './be-mapper'
 import WaveformPlayer from './WaveformPlayer'
@@ -212,6 +213,10 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
       setReport(rep); if (usedId) setViewCallId(usedId)
       setFallbackCall(rep ? viaFallback : false)
       setReportFailed(!rep); setLoadErr(rep ? null : lastErr); setLoading(false)
+      // Issue signals — one capture per resolution attempt.
+      if (!rep && !isMessaging) track('call:report_load_fail', 'issue', { action_item_id: item?.action_item_id, had_own_source: hasOwnSource, error_message: String(lastErr?.message || '') })
+      else if (rep && viaFallback) track('call:fallback_shown', 'issue', { action_item_id: item?.action_item_id, customer_id: item?.customer_id })
+      else if (rep && !isMessaging && !rep.recordingUrl) track('call:recording_unavailable', 'issue', { action_item_id: item?.action_item_id, call_id: usedId })
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -230,9 +235,11 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
         const n = raw ? normalizeCallReport(raw) : null
         if (cancelled) return
         setReport(n); setReportFailed(!n); setLoadErr(null); setLoading(false)
+        if (!n) track('call:report_load_fail', 'issue', { call_id: viewCallId, drilled: true })
       } catch (e) {
         if (cancelled) return
         setReport(null); setReportFailed(true); setLoadErr(e); setLoading(false)
+        track('call:report_load_fail', 'issue', { call_id: viewCallId, drilled: true, error_message: String(e?.message || '') })
       }
     })()
     return () => { cancelled = true }
@@ -293,7 +300,7 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
   const appt = report?.appointment || {}
   const title = report?.title || item.intent_recap || (isMessaging ? 'Conversation' : 'Call received but the customer did not speak')
 
-  const seek = (sec) => { waveRef.current?.seek(sec); waveRef.current?.play() }
+  const seek = (sec) => { track('call:transcript_seek', 'engagement', { at_sec: sec }); waveRef.current?.seek(sec); waveRef.current?.play() }
 
   const headerIcon = drilledIn ? null : (isMessaging ? FaRegComments : IoMdCall)
 
@@ -305,7 +312,7 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
     const openable = !!c.callId || smsCount > 0
     return (
       <button key={c.conversationId || c._id} disabled={!openable}
-        onClick={() => { setDrilledFromList(true); if (c.callId) setViewCallId(c.callId); else if (smsCount > 0) { setViewCallId(null); setSmsView(c) } }}
+        onClick={() => { track('call:conversation_drill', 'engagement', { is_sms: isSms, is_this_item: isThis, has_recording: !!c.callId }); setDrilledFromList(true); if (c.callId) setViewCallId(c.callId); else if (smsCount > 0) { setViewCallId(null); setSmsView(c) } }}
         className={`flex w-full flex-col gap-1 rounded-lg border bg-white p-3 text-left transition-colors hover:border-[#4600f2] disabled:cursor-not-allowed disabled:opacity-50 ${isThis ? 'border-[#4600f2]' : 'border-gray-200'}`}>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">{isSms ? <FaRegComments className="h-3 w-3" /> : <IoMdCall className="h-3 w-3" />} {c.type || (isSms ? 'sms' : 'call')}</span>
@@ -421,7 +428,7 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
                 </div>
 
                 <p className="text-[11px] text-gray-400">{viewCallId ? 'No full transcript stored for this call.' : 'No linked call/transcript for this item.'}</p>
-                {(convs || []).length > 0 && <button onClick={() => setBrowseList(true)} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#4600f2]">Browse all {(convs || []).length} conversations →</button>}
+                {(convs || []).length > 0 && <button onClick={() => { track('call:browse_conversations', 'engagement', { conversation_count: (convs || []).length, customer_id: item?.customer_id }); setBrowseList(true) }} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#4600f2]">Browse all {(convs || []).length} conversations →</button>}
               </>
             )}
           </div>
@@ -444,7 +451,7 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
                   if that call has a recording, play it. The no-recording diagnostic stays
                   call-channel-only so SMS threads aren't flagged for missing audio. */}
               {report?.recordingUrl ? (
-                <WaveformPlayer key={viewCallId} ref={waveRef} url={recordingProxyUrl(report.recordingUrl)} onTimeUpdate={setAudioTime} onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} />
+                <WaveformPlayer key={viewCallId} ref={waveRef} url={recordingProxyUrl(report.recordingUrl)} onTimeUpdate={setAudioTime} onPlay={() => { if (!audioPlaying) track('call:recording_play', 'activation', { action_item_id: item?.action_item_id, call_id: viewCallId, is_fallback_call: fallbackCall }); setAudioPlaying(true) }} onPause={() => setAudioPlaying(false)} />
               ) : !isMessaging ? (
                 <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
                   <span className="font-semibold">No recording returned by the backend for this call.</span> The report loaded, but <code>callDetails.recordingUrl</code> is empty — the recording wasn’t captured/stored server-side (transcript below is still available).
@@ -455,7 +462,7 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
             <div className="flex-none border-b border-gray-100 bg-white px-6">
               <nav className="flex space-x-3 overflow-x-auto">
                 {DRAWER_TABS.map((t) => (
-                  <button key={t.id} onClick={() => { setActiveTab(t.id); document.getElementById(`section-${t.id}`)?.scrollIntoView({ behavior: 'smooth' }) }}
+                  <button key={t.id} onClick={() => { if (t.id === 'transcript' && activeTab !== 'transcript') track('call:transcript_view', 'activation', { action_item_id: item?.action_item_id, is_messaging: isMessaging, turn_count: messages.length }); setActiveTab(t.id); document.getElementById(`section-${t.id}`)?.scrollIntoView({ behavior: 'smooth' }) }}
                     className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors ${activeTab === t.id ? 'border-[#4600f2] text-[#4600f2]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                     {t.id === 'transcript' && isMessaging ? 'Conversation' : t.label}
                   </button>

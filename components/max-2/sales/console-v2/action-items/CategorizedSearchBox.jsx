@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MaterialSymbol } from '@/components/max-2/material-symbol'
 import { cn } from '@/lib/utils'
+import { track } from '@/lib/analytics'
 import {
   INTENT_TAXONOMY, DEPT_BADGE, CUSTOMERS, phoneMatchesQuery,
 } from './data'
@@ -141,6 +142,19 @@ export default function CategorizedSearchBox({
 
   const totalMatches = groups.customers.length + groups.intents.length + groups.items.length
   const showDropdown = open && hasQuery
+
+  // Analytics: emit one search event after typing settles (600ms debounce) — not per keystroke.
+  useEffect(() => {
+    if (!hasQuery || q.length < 2) return
+    const t = setTimeout(() => {
+      track('search:perform', 'engagement', {
+        query_length: q.length, total_matches: totalMatches,
+        customer_matches: groups.customers.length, intent_matches: groups.intents.length, item_matches: groups.items.length,
+      })
+      if (totalMatches === 0) track('search:zero_results', 'issue', { query_length: q.length })
+    }, 600)
+    return () => clearTimeout(t)
+  }, [q, hasQuery, totalMatches])
 
   /* ── Close on outside-click + Escape ───────────────────────────────── */
   useEffect(() => {

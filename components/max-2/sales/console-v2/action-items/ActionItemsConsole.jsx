@@ -11,7 +11,7 @@
  * sidebar drawer, a create-item modal, and a read-only rules panel.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MaterialSymbol } from '@/components/max-2/material-symbol'
 import { max2Classes, spyneSalesLayout } from '@/lib/design-system/max-2'
 import { cn } from '@/lib/utils'
@@ -25,8 +25,9 @@ import {
   ACTION_ITEMS, INTENT_TAXONOMY, DEPT_BADGE, DEPT_LABEL, CHANNEL_META, CUSTOMERS, USERS,
   RESOLUTION_TYPES, RESOLUTION_TYPE_LABEL, RESOLUTION_TYPE_GLYPH,
   ageLabel, ageMinutes, isPastSla, slaOverdueMinutes, deptOf, phoneMatchesQuery,
-  formatCreatedAt, formatSla, createdDayKey, mergeLiveIntents,
+  formatCreatedAt, formatSla, createdDayKey, mergeLiveIntents, itemProps,
 } from './data'
+import { track } from '@/lib/analytics'
 
 // Snapshot of the predefined per-intent SLA hours (captured before any in-session edit),
 // so the Rules panel can offer "Reset SLAs". Edits mutate INTENT_TAXONOMY in memory only
@@ -114,7 +115,21 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   const [filters, setFilters] = useState({ search: '', assignment: 'all', channel: 'all', dept: initialDept || 'all', intent: 'all', sla: 'all', repeat: false, created: 'all', callbacks: false })
   // Apply a metric-tile / quick-chip filter and snap back to the Unresolved tab so the
   // filtered queue is actually visible (metrics are global KPIs; the click filters the list).
-  const applyQuickFilter = (patch) => { setFilters((f) => ({ ...f, ...patch })); setTab('unresolved'); setResolvedDetailId(null) }
+  const applyQuickFilter = (patch) => { track('queue:hero_metric_click', 'engagement', { metric: Object.keys(patch).join(','), ...patch }); setFilters((f) => ({ ...f, ...patch })); setTab('unresolved'); setResolvedDetailId(null) }
+  // FilterBar funnels every filter/chip/clear through onChange → this diff wrapper emits granular
+  // engagement events. Search is tracked in CategorizedSearchBox (it has the match counts).
+  const handleFiltersChange = (next) => {
+    try {
+      const keys = ['assignment', 'channel', 'intent', 'sla', 'created', 'repeat', 'callbacks']
+      const changed = keys.filter((k) => next[k] !== filters[k])
+      if (changed.length >= 3) track('queue:clear_filters', 'engagement', { cleared_count: changed.length })
+      else for (const k of changed) {
+        if (k === 'repeat' || k === 'callbacks') track('queue:chip_toggle', 'engagement', { chip_key: k, active: !!next[k] })
+        else track('queue:filter', 'engagement', { filter_key: k, filter_value: next[k] })
+      }
+    } catch { /* analytics must never break the UI */ }
+    setFilters(next)
+  }
   const [groupBy, setGroupBy] = useState('customer')
   const [selectedGroup, setSelectedGroup] = useState(null)  // group key (customer/intent/assignee) the user picked
   const [selectedItemId, setSelectedItemId] = useState(null) // single action_item_id (None view + search highlight)
@@ -134,6 +149,9 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
 
   const [users, setUsers] = useState([]) // live assignable users (embed scope)
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600) }
+  // Analytics: session mount time + a once-guard for the "first resolve" activation signal.
+  const mountedAt = useRef(Date.now())
+  const firstResolveDone = useRef(false)
 
   // The acting BDC resolved to { id, name, email } from the live user list (+ host-passed email).
   // Identity sources, in order: explicit ?userId → ?userEmail matched against the live user list
@@ -287,11 +305,24 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
       : i)))
     setResolvingFor(null)
     flash(actingUser ? `Resolved — assigned to ${actingUser.name}` : 'Resolved — moved to Resolved')
+    track('item:resolve', 'activation', {
+      ...(it ? itemProps(it) : { action_item_id: id }),
+      resolution_type: resolutionType, has_note: !!note?.trim(),
+      assignee_after: actingUser?.id, is_live: isLive,
+    })
+    if (!firstResolveDone.current) {
+      firstResolveDone.current = true
+      track('item:first_resolve', 'activation', {
+        ...(it ? itemProps(it) : { action_item_id: id }),
+        resolution_type: resolutionType,
+        time_to_first_resolve_ms: Date.now() - mountedAt.current,
+      })
+    }
     if (isLive) {
       const ok = await resolveActionItems(id, resolutionType, note, actingUser?.id) // resolvedBy = acting BDC
       const leadId = it?.lead_id || it?.customer_id
       if (actingUser && leadId) await assignActionItem(leadId, actingUser.id) // store resolver as assignee
-      if (!ok) flash('Saved in view — backend resolve not reachable yet')
+      if (!ok) { flash('Saved in view — backend resolve not reachable yet'); track('data:write_unreachable', 'issue', { write_kind: 'resolve', action_item_id: id, resolution_type: resolutionType }) }
     }
   }
   // Scope resolve-all to the currently-VISIBLE (filtered) items so the action
@@ -306,10 +337,11 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
       ? { ...i, status: 'completed', resolution_type: i.resolution_type ?? 'info_provided', closed_at: closedAt, assignee_user_id: actingUser?.id ?? i.assignee_user_id }
       : i)))
     flash('All items resolved'); setResolvingFor(null); setIncorrectFor(null)
+    track('queue:resolve_all', 'engagement', { item_count: ids.length, group_by: groupBy, customer_id: pend[0]?.customer_id, is_live: isLive })
     if (isLive) {
       const ok = await resolveActionItems(ids, 'info_provided', 'Bulk resolved from console', actingUser?.id)
       if (actingUser) for (const it of pend) { const leadId = it.lead_id || it.customer_id; if (leadId) await assignActionItem(leadId, actingUser.id) }
-      if (!ok) flash('Saved in view — backend resolve not reachable yet')
+      if (!ok) { flash('Saved in view — backend resolve not reachable yet'); track('data:write_unreachable', 'issue', { write_kind: 'resolve_all', count: ids.length }) }
     }
   }
   const markIncorrect = async (id, reason, correctedIntentId) => {
@@ -324,11 +356,15 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
     } : i)))
     setIncorrectFor(null)
     flash(correctName ? `Reclassified to ${correctName} + flagged` : 'Marked incorrect — excluded from closure rate')
+    track('item:flag_incorrect', 'activation', {
+      ...(items.find((i) => i.action_item_id === id) ? itemProps(items.find((i) => i.action_item_id === id)) : { action_item_id: id }),
+      incorrect_reason: reason, is_reclassify: !!correctedIntentId, corrected_intent_id: correctedIntentId, original_intent_id: orig,
+    })
     // The corrected intent rides in `note` — the BE mark-incorrect DTO rejects a dedicated field.
     const note = correctName ? `Reclassified from ${INTENT_TAXONOMY[orig]?.display_name || orig || 'unknown'} → ${correctName} (${correctedIntentId})` : undefined
-    if (isLive && !(await markIncorrectActionItems(id, reason, note, actingUser?.id))) flash('Saved in view — backend flag not reachable yet')
+    if (isLive && !(await markIncorrectActionItems(id, reason, note, actingUser?.id))) { flash('Saved in view — backend flag not reachable yet'); track('data:write_unreachable', 'issue', { write_kind: 'incorrect', action_item_id: id, incorrect_reason: reason }) }
   }
-  const undoIncorrect = (id) => { setItems((p) => p.map((i) => (i.action_item_id === id ? { ...i, status: 'pending', incorrect_reason: undefined, corrected_intent_id: undefined, ...(i.original_intent_id ? { intent_id: i.original_intent_id, original_intent_id: undefined } : {}) } : i))); flash('Restored to Unresolved') }
+  const undoIncorrect = (id) => { setItems((p) => p.map((i) => (i.action_item_id === id ? { ...i, status: 'pending', incorrect_reason: undefined, corrected_intent_id: undefined, ...(i.original_intent_id ? { intent_id: i.original_intent_id, original_intent_id: undefined } : {}) } : i))); flash('Restored to Unresolved'); track('item:restore', 'engagement', { action_item_id: id }) }
   const assign = async (id, userId) => {
     const it = items.find((i) => i.action_item_id === id)
     const leadId = it?.lead_id || it?.customer_id
@@ -336,10 +372,11 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
     setAssigningFor(null)
     if (leadId) {
       const ok = await assignActionItem(leadId, userId) // real PATCH direct to backend
-      if (!ok) { flash('Could not assign — try again'); return }
+      if (!ok) { flash('Could not assign — try again'); track('data:assign_fail', 'issue', { action_item_id: id, lead_id: leadId }); return }
     }
     setItems((p) => p.map((i) => (i.action_item_id === id ? { ...i, assignee_user_id: userId } : i)))
     flash(`Assigned to ${uname}`)
+    track('item:assign', 'activation', { ...(it ? itemProps(it) : { action_item_id: id }), assignee_user_id: userId, assign_success: true })
   }
 
   // ── Search-pick wiring ────────────────────────────────────────────
@@ -369,6 +406,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   const pickItem = (actionItemId) => {
     const it = items.find((i) => i.action_item_id === actionItemId)
     if (!it) return
+    track('item:open', 'activation', { ...itemProps(it), group_by: groupBy })
     clearFiltersHiding(it)
     if (groupBy === 'none') setSelectedItemId(actionItemId)
     else {
@@ -389,6 +427,24 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   }, [activeItems.length, isFlat, flatSorted, groups, selectedItemId, selectedGroup, tab])
 
   const resetSelection = () => { setSelectedGroup(null); setSelectedItemId(null) }
+
+  // Analytics for the two drawers — fire once when each opens (covers every trigger site).
+  useEffect(() => {
+    if (!sidebarCustomer) return
+    track('customer:sidebar_open', 'engagement', { customer_id: sidebarCustomer })
+  }, [sidebarCustomer])
+  useEffect(() => {
+    if (!sourceView?.item) return
+    track('call:drawer_open', 'activation', { ...itemProps(sourceView.item), mode: sourceView.mode })
+  }, [sourceView])
+  // Friction: a filter/search combination that hides the whole queue (there IS pending work).
+  useEffect(() => {
+    if (tab !== 'unresolved') return
+    const filtersActive = !!(filters.search || filters.assignment !== 'all' || filters.channel !== 'all' || filters.intent !== 'all' || filters.sla !== 'all' || filters.repeat || filters.callbacks || filters.created !== 'all')
+    if (filtersActive && pending.length > 0 && filteredPending.length === 0) {
+      track('queue:empty_after_filters', 'issue', { has_search: !!filters.search })
+    }
+  }, [filteredPending.length, tab])
 
   return (
     <div className={cn(spyneSalesLayout.pageStack, 'min-h-0 flex-1 [&>*+*]:!mt-2')}>
@@ -420,7 +476,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
                 key={id}
                 role="tab"
                 aria-selected={active}
-                onClick={() => { setTab(id); setResolvedDetailId(null) }}
+                onClick={() => { if (id !== tab) track('queue:tab_switch', 'engagement', { tab: id, count: n }); setTab(id); setResolvedDetailId(null) }}
                 className="spyne-focus-ring -mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors"
                 style={active ? { borderColor: 'var(--spyne-primary)', color: 'var(--spyne-primary)' } : { borderColor: 'transparent', color: 'var(--spyne-text-muted)' }}
               >
@@ -432,7 +488,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
         </div>
         {/* Manager/My-queue toggle removed (product call) — everyone sees the full board. */}
         <div className="flex items-center gap-2 pb-1">
-          <button onClick={() => setRulesOpen(true)} className="spyne-btn-ghost !h-8 !text-[12px]" title="Action-item rules & routing">
+          <button onClick={() => { track('sla:rules_open', 'engagement', {}); setRulesOpen(true) }} className="spyne-btn-ghost !h-8 !text-[12px]" title="Action-item rules & routing">
             <MaterialSymbol name="settings" size={15} /> Rules
           </button>
         </div>
@@ -447,13 +503,13 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
           {/* Filters */}
           <FilterBar
             filters={filters}
-            onChange={setFilters}
+            onChange={handleFiltersChange}
             items={items}
             groupBy={groupBy}
-            onGroupBy={(g) => { setGroupBy(g); resetSelection() }}
-            onPickCustomer={focusCustomer}
-            onPickIntent={(intentId) => setFilters((f) => ({ ...f, intent: intentId }))}
-            onPickItem={pickItem}
+            onGroupBy={(g) => { track('queue:group_by_change', 'engagement', { group_by: g }); setGroupBy(g); resetSelection() }}
+            onPickCustomer={(cid) => { track('search:result_pick', 'engagement', { result_type: 'customer' }); focusCustomer(cid) }}
+            onPickIntent={(intentId) => { track('search:result_pick', 'engagement', { result_type: 'intent' }); setFilters((f) => ({ ...f, intent: intentId })) }}
+            onPickItem={(id) => { track('search:result_pick', 'engagement', { result_type: 'item' }); pickItem(id) }}
           />
 
           {/* Master / detail */}
@@ -565,6 +621,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
         onPersistSla={isLive ? (async (code, minutes, dept) => {
           const ok = await upsertDealerIntentConfig({ intentCode: code, serviceType: dept === 'sales' ? 'sales' : 'service', customSlaMinutes: minutes, updatedBy: actingUser?.id || 'console' })
           flash(ok ? `SLA saved (${minutes}m)` : 'SLA saved in view — backend not reachable')
+          track(ok ? 'sla:rule_save' : 'data:sla_persist_fail', ok ? 'engagement' : 'issue', { intent_code: code, minutes, department: dept })
           return ok
         }) : null} />}
     </div>

@@ -10,6 +10,7 @@
 import { CUSTOMERS, USERS, prettyIntent, deptFromServiceType, type ActionItem } from "./data"
 import { getEmbedScope, apiBaseForEnv, type EmbedScope } from "./be-scope"
 import { mapBeItem, customersFromBe, usersFromBe } from "./be-mapper"
+import { track } from "@/lib/analytics"
 
 /** Raw URL-injected scope (window.__AI_SCOPE__) — may be partial before params resolve. */
 function rawScope(): Partial<EmbedScope> {
@@ -56,7 +57,9 @@ export async function fetchActionItems(): Promise<ActionItem[] | null> {
     // Department is applied client-side (action items have no department field) — not sent here.
     const res = await fetch(url.toString(), { method: "GET", headers, cache: "no-store" })
     if (!res.ok) {
+      track("data:fetch_fail", "issue", { endpoint: "action-items", is_completed: false, status_code: res.status, page })
       if (page === 1) throw new Error(`GET /conversation/action-items → ${res.status}`)
+      track("data:fetch_partial", "issue", { endpoint: "action-items", pages_fetched: page - 1, items_so_far: raw.length })
       break // partial backlog is better than an error mid-pagination
     }
     const body = await res.json()
@@ -112,7 +115,7 @@ export async function fetchCompletedActionItems(): Promise<ActionItem[]> {
     url.searchParams.set("limit", String(pageSize))
     url.searchParams.set("page", String(page))
     const res = await fetch(url.toString(), { method: "GET", headers, cache: "no-store" })
-    if (!res.ok) break
+    if (!res.ok) { track("data:fetch_fail", "issue", { endpoint: "action-items", is_completed: true, status_code: res.status, page }); break }
     const body = await res.json()
     const batch: any[] = Array.isArray(body?.data)
       ? body.grouped ? body.data.flatMap((g: any) => g?.actionItems ?? []) : body.data
@@ -142,7 +145,7 @@ export async function fetchUsers(): Promise<{ id: string; name: string; initials
   url.searchParams.set("batchSize", "100")
   url.searchParams.set("onlyActive", "true")
   const res = await fetch(url.toString(), { headers: authHeaders(), cache: "no-store" })
-  if (!res.ok) return []
+  if (!res.ok) { track("data:fetch_fail", "issue", { endpoint: "user-list", status_code: res.status }); return [] }
   const body = await res.json()
   const active = body?.data?.activeUsers ?? {}
   return Object.values(active)

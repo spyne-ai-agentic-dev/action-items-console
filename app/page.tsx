@@ -5,6 +5,7 @@ import { useSearchParams, usePathname, useRouter } from "next/navigation"
 import { ActionItemsConsole } from "@/components/max-2/sales/console-v2/action-items"
 import { fetchActionItems, fetchCompletedActionItems } from "@/components/max-2/sales/console-v2/action-items/be-client"
 import { withRepeatCallerCounts, type ActionItem } from "@/components/max-2/sales/console-v2/action-items/data"
+import { initAnalytics, identifyOperator, registerScope, track } from "@/lib/analytics"
 
 /**
  * Standalone Action Items — the iframe target.
@@ -88,6 +89,30 @@ function ActionItemsApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [department])
 
+  // Analytics: init once, identify the operator from the URL scope (no cookies — see analytics.ts),
+  // and record the adoption "app load" signal. scope_missing / load outcomes fire in the effects below.
+  useEffect(() => {
+    initAnalytics()
+    const hasUserIdentity = !!(userId || userEmail)
+    identifyOperator({ userId, userEmail, enterpriseId: ent, teamId: team })
+    registerScope({ env, enterpriseId: ent, teamId: team, department, hasUserIdentity })
+    const scopePresent = !!(ent && team && token)
+    track("console:app_load", "adoption", {
+      is_iframed: typeof window !== "undefined" && window.parent !== window,
+      scope_present: scopePresent,
+      has_user_identity: hasUserIdentity,
+      department,
+    })
+    if (!scopePresent) {
+      track("console:scope_missing", "adoption", {
+        has_enterprise_id: !!ent,
+        has_team_id: !!team,
+        has_token: !!token,
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Host → iframe bridge: the host can switch the department at any time (e.g. its own tabs, or a
   // deep-link it resolved after load) by posting { type: "setServiceType", serviceType } to this
   // iframe. On mount we announce readiness + our initial department so the host can reconcile.
@@ -96,7 +121,10 @@ function ActionItemsApp() {
       const d = e.data
       if (!d || typeof d !== "object" || d.type !== "setServiceType") return
       const v = String(d.serviceType ?? "").toLowerCase()
-      if (v === "sales" || v === "service") setDepartment(v)
+      if (v === "sales" || v === "service") {
+        if (v !== department) track("console:department_switch", "adoption", { from: department, to: v, changed_via: "host" })
+        setDepartment(v)
+      }
     }
     window.addEventListener("message", onMessage)
     postToHost({ source: "action-items-console", type: "ready", serviceType: department })
@@ -113,6 +141,9 @@ function ActionItemsApp() {
     setItems(undefined) // shows the loading state
     setError(null)
     setCount(null)
+    // Keep scope super-properties current (department changes at runtime).
+    registerScope({ env, enterpriseId: ent, teamId: team, department, hasUserIdentity: !!(userId || userEmail) })
+    const startedAt = Date.now()
     // Direct backend calls (no proxy) — pending (queue) + completed (resolved/incorrect, from the DB
     // so those tabs persist across reloads). Uses env + token straight from the iframe URL.
     Promise.all([fetchActionItems(), fetchCompletedActionItems()])
@@ -125,12 +156,21 @@ function ActionItemsApp() {
         const merged = withRepeatCallerCounts([...pend, ...done.filter((i) => !seen.has(i.action_item_id))])
         setItems(merged)
         setCount(merged.length) // render the console if there's ANY data (so Resolved/Incorrect tabs show)
+        const loadMs = Date.now() - startedAt
+        track("console:load_duration", "adoption", {
+          load_ms: loadMs, is_slow: loadMs > 4000,
+          pending_count: pend.length, completed_count: done.length, merged_count: merged.length,
+          department,
+        })
+        if (merged.length === 0) track("console:empty", "adoption", { department })
       })
       .catch((e) => {
         if (cancelled) return
         setItems([])
         setCount(null)
-        setError(String((e as Error)?.message || e))
+        const msg = String((e as Error)?.message || e)
+        setError(msg)
+        track("console:load_fail", "issue", { error_message: msg, department, load_ms: Date.now() - startedAt })
       })
     return () => { cancelled = true }
   }, [ent, team, department, userId, userEmail, token, env])
@@ -150,7 +190,7 @@ function ActionItemsApp() {
                 key={d}
                 role="tab"
                 aria-selected={active}
-                onClick={() => !active && setDepartment(d)}
+                onClick={() => { if (!active) { track("console:department_switch", "adoption", { from: department, to: d, changed_via: "toggle" }); setDepartment(d) } }}
                 className="rounded-md px-3.5 py-1 text-[12.5px] font-semibold capitalize transition-colors spyne-focus-ring"
                 style={active ? { background: "var(--spyne-primary)", color: "#fff" } : { color: "var(--spyne-text-secondary)" }}
               >
