@@ -112,10 +112,20 @@ export default function CategorizedSearchBox({
     if (!hasQuery) return { customers: [], intents: [], items: [] }
 
     // Match by name OR phone — phone matching ignores formatting and the +1 country code, so
-    // "2162022537" finds "+1 216-202-2537".
-    const customers = Object.entries(CUSTOMERS)
-      .filter(([, c]) => c.name.toLowerCase().includes(q) || phoneMatchesQuery(c.phone, q))
-      .map(([id, c]) => ({ id, ...c }))
+    // "2162022537" finds "+1 216-202-2537". Build the candidate set from the SCOPED items (the
+    // queue you're searching), not the global CUSTOMERS map — otherwise picking a customer with no
+    // item in this queue snaps the selection to whoever sorts first (wrong-entity bug).
+    const byId = new Map()
+    for (const it of (items ?? [])) {
+      if (!it.customer_id || byId.has(it.customer_id)) continue
+      byId.set(it.customer_id, {
+        id: it.customer_id,
+        name: it.customer_name ?? CUSTOMERS[it.customer_id]?.name ?? '',
+        phone: it.customer_phone ?? CUSTOMERS[it.customer_id]?.phone ?? '',
+      })
+    }
+    const customers = [...byId.values()]
+      .filter((c) => c.name.toLowerCase().includes(q) || phoneMatchesQuery(c.phone, q))
 
     const intents = Object.values(INTENT_TAXONOMY)
       .filter((i) => i.display_name.toLowerCase().includes(q))

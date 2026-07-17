@@ -144,6 +144,7 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
   const [smsView, setSmsView] = useState(null)
   const [report, setReport] = useState(null)
   const [reportFailed, setReportFailed] = useState(false)
+  const [fallbackCall, setFallbackCall] = useState(false)  // shown report is the customer's latest call, not this item's own
   const [loadErr, setLoadErr] = useState(null)   // surfaced when a call report can't be loaded
   const [convs, setConvs] = useState(null)
   const [browseList, setBrowseList] = useState(false)   // user opted to browse all conversations
@@ -172,22 +173,24 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
   useEffect(() => {
     if (mode !== 'conversation' || !item?.customer_id) return
     let cancelled = false
-    fetchConversations(item.customer_id)
+    fetchConversations(item.customer_id, item?.department)
       .then((r) => { if (!cancelled) setConvs(r.conversations || []) })
       .catch(() => { if (!cancelled) setConvs([]) })
     return () => { cancelled = true }
-  }, [mode, item?.customer_id])
+  }, [mode, item?.customer_id, item?.department])
 
   // Resolve the item's REAL call and load its report. Try the item's own call id (callSid), then its
-  // conversation id, then (for call items) the customer's most recent call — so Listen/Transcript
-  // always lands on the actual call instead of dropping to the evidence snippet. Fall back to the
-  // snippet ONLY when no report exists anywhere; surface the last error so a genuine gap is visible.
+  // conversation id. Only when the item carries NO source id of its own do we fall back to the
+  // customer's most recent call (flagged as such). We deliberately do NOT substitute a different call
+  // when the item HAS a source id that merely failed to load — showing an unrelated conversation as
+  // this item's source is the wrong-entity bug; we drop to the evidence excerpt instead and surface
+  // the error so a genuine gap is visible.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      setLoading(true); setReportFailed(false); setReport(null); setLoadErr(null)
+      setLoading(true); setReportFailed(false); setReport(null); setLoadErr(null); setFallbackCall(false)
       const tried = []
-      let rep = null, usedId = null, lastErr = null
+      let rep = null, usedId = null, lastErr = null, viaFallback = false
       const tryId = async (id) => {
         if (!id || tried.includes(id)) return null
         tried.push(id)
@@ -196,20 +199,44 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
         return null
       }
       for (const id of [item?.source_call_id, item?.source_conversation_id]) { rep = await tryId(id); if (rep) break }
-      // Last resort (call items only): the customer's most recent call from their conversation history.
-      if (!rep && !isMessaging && item?.customer_id) {
+      // Last resort — ONLY for call items with no source id at all. Best-effort "customer's latest
+      // call", clearly labelled so nobody mistakes it for this item's own call.
+      const hasOwnSource = !!(item?.source_call_id || item?.source_conversation_id)
+      if (!rep && !hasOwnSource && !isMessaging && item?.customer_id) {
         try {
-          const { conversations } = await fetchConversations(item.customer_id)
-          for (const c of (conversations || [])) { rep = await tryId(c.callId || c.call_id || c?.call?.id || c?.vapiCallId); if (rep) break }
+          const { conversations } = await fetchConversations(item.customer_id, item?.department)
+          for (const c of (conversations || [])) { rep = await tryId(c.callId || c.call_id || c?.call?.id || c?.vapiCallId); if (rep) { viaFallback = true; break } }
         } catch (e) { lastErr = e }
       }
       if (cancelled) return
       setReport(rep); if (usedId) setViewCallId(usedId)
+      setFallbackCall(rep ? viaFallback : false)
       setReportFailed(!rep); setLoadErr(rep ? null : lastErr); setLoading(false)
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.source_call_id, item?.source_conversation_id, item?.customer_id])
+
+  // Drilled into a specific call from the "Browse all conversations" list → load THAT call's report.
+  // (The effect above keys off the item, not viewCallId, so without this a drilled call would never
+  // fetch — leaving the panel dead or, worse, showing the previous call's report under a new Call ID.)
+  useEffect(() => {
+    if (!drilledFromList || !viewCallId || smsView) return
+    let cancelled = false
+    ;(async () => {
+      setLoading(true); setReportFailed(false); setReport(null); setLoadErr(null); setFallbackCall(false)
+      try {
+        const raw = await fetchCallReport(viewCallId)
+        const n = raw ? normalizeCallReport(raw) : null
+        if (cancelled) return
+        setReport(n); setReportFailed(!n); setLoadErr(null); setLoading(false)
+      } catch (e) {
+        if (cancelled) return
+        setReport(null); setReportFailed(true); setLoadErr(e); setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [drilledFromList, viewCallId, smsView])
 
   const messages = report?.messages || []
   const activeTranscriptIndex = useMemo(() => {
@@ -278,7 +305,7 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
     const openable = !!c.callId || smsCount > 0
     return (
       <button key={c.conversationId || c._id} disabled={!openable}
-        onClick={() => { setDrilledFromList(true); if (c.callId) setViewCallId(c.callId); else if (smsCount > 0) setSmsView(c) }}
+        onClick={() => { setDrilledFromList(true); if (c.callId) setViewCallId(c.callId); else if (smsCount > 0) { setViewCallId(null); setSmsView(c) } }}
         className={`flex w-full flex-col gap-1 rounded-lg border bg-white p-3 text-left transition-colors hover:border-[#4600f2] disabled:cursor-not-allowed disabled:opacity-50 ${isThis ? 'border-[#4600f2]' : 'border-gray-200'}`}>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">{isSms ? <FaRegComments className="h-3 w-3" /> : <IoMdCall className="h-3 w-3" />} {c.type || (isSms ? 'sms' : 'call')}</span>
@@ -309,6 +336,12 @@ export default function CallConversationDrawer({ item, mode, onClose }) {
                 <div className="flex items-center gap-2"><FaClock className="h-4 w-4" /> <span>{ageLabel(ageMin)}</span></div>
                 {channel ? <span className="text-gray-400">· {channel.label}</span> : null}
               </div>
+              {fallbackCall && !drilledIn ? (
+                <div className="mt-2 inline-flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700">
+                  <FaClock className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                  <span>This item has no linked call — showing this customer's most recent call, which may not be the one this item came from.</span>
+                </div>
+              ) : null}
             </div>
             <button onClick={onClose} className="flex-shrink-0 rounded-lg p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600"><FaTimes className="h-5 w-5" /></button>
           </div>

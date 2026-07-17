@@ -553,10 +553,10 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
 
       {/* Floating layers */}
       {sidebarCustomer && (
-        <CustomerSidebar customerId={sidebarCustomer} items={items} onClose={() => setSidebarCustomer(null)} />
+        <CustomerSidebar key={sidebarCustomer} customerId={sidebarCustomer} items={items} onClose={() => setSidebarCustomer(null)} />
       )}
       {sourceView && (
-        <CallConversationDrawer item={sourceView.item} mode={sourceView.mode} onClose={() => setSourceView(null)} />
+        <CallConversationDrawer key={sourceView.item.action_item_id} item={sourceView.item} mode={sourceView.mode} onClose={() => setSourceView(null)} />
       )}
       {createOpen && !readOnly && (
         <CreateActionItemModal onCreate={(item) => { setItems((p) => [item, ...p]); flash('Action item created'); }} onClose={() => setCreateOpen(false)} />

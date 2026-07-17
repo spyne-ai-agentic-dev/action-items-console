@@ -144,9 +144,13 @@ export function customersFromBe(docs: any[]): Record<string, { name: string; pho
     const c = d?.customer || {}
     const id = String(d?.meta?.customer_id ?? c.customer_id ?? d?.lead_id ?? "")
     if (!id) continue
+    // Merge-fill, don't clobber: the same customer appears on many docs and a later sparse one
+    // (e.g. a system-generated item with an empty customer object) must not overwrite a good
+    // name/phone written by an earlier doc.
+    const prev = out[id]
     out[id] = {
-      name: c.name ?? d?.meta?.customer_name ?? "Customer",
-      phone: c.mobile ?? (Array.isArray(c.emails) ? c.emails[0] : "") ?? "",
+      name: c.name ?? d?.meta?.customer_name ?? prev?.name ?? "Customer",
+      phone: c.mobile ?? prev?.phone ?? (Array.isArray(c.emails) ? c.emails[0] : "") ?? "",
     }
   }
   return out

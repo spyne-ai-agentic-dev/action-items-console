@@ -44,6 +44,7 @@ export async function fetchActionItems(): Promise<ActionItem[] | null> {
   const pageSize = 200
   const maxPages = 20
   let raw: any[] = []
+  const seenIds = new Set<string>()  // dedup across pages: new/removed items shift the window and can repeat a boundary row
   for (let page = 1; page <= maxPages; page++) {
     const url = new URL(`${base}/conversation/action-items`)
     url.searchParams.set("enterpriseId", scope.enterpriseId)
@@ -63,7 +64,12 @@ export async function fetchActionItems(): Promise<ActionItem[] | null> {
     const batch: any[] = Array.isArray(body?.data)
       ? body.grouped ? body.data.flatMap((g: any) => g?.actionItems ?? []) : body.data
       : []
-    raw = raw.concat(batch)
+    for (const d of batch) {
+      const id = String(d?._id ?? d?.id ?? "")
+      if (id && seenIds.has(id)) continue
+      if (id) seenIds.add(id)
+      raw.push(d)
+    }
     const totalPages = Number(body?.pagination?.totalPages ?? 1)
     if (batch.length < pageSize || page >= totalPages) break
   }
@@ -96,6 +102,7 @@ export async function fetchCompletedActionItems(): Promise<ActionItem[]> {
   const pageSize = 200
   const maxPages = 10
   let all: any[] = []
+  const seenIds = new Set<string>()  // dedup across pages (see fetchActionItems)
   for (let page = 1; page <= maxPages; page++) {
     const url = new URL(`${base}/conversation/action-items`)
     url.searchParams.set("enterpriseId", scope.enterpriseId)
@@ -110,7 +117,12 @@ export async function fetchCompletedActionItems(): Promise<ActionItem[]> {
     const batch: any[] = Array.isArray(body?.data)
       ? body.grouped ? body.data.flatMap((g: any) => g?.actionItems ?? []) : body.data
       : []
-    all = all.concat(batch)
+    for (const d of batch) {
+      const id = String(d?._id ?? d?.id ?? "")
+      if (id && seenIds.has(id)) continue
+      if (id) seenIds.add(id)
+      all.push(d)
+    }
     const totalPages = Number(body?.pagination?.totalPages ?? 1)
     if (batch.length < pageSize || page >= totalPages) break
   }
@@ -314,11 +326,14 @@ export async function fetchCallReport(callId: string): Promise<any | null> {
 }
 
 /** The customer's conversations — direct backend call. Returns { conversations, summary }.
- *  Scoped to the embed's selected department (window.__AI_SCOPE__.department) so leads/conversations
- *  match the top-level department filter; defaults to "service" when unset. */
-export async function fetchConversations(customerId: string): Promise<{ conversations: any[]; summary: any }> {
+ *  Scoped to a department so leads/conversations match: pass the item's own department when
+ *  resolving a specific item's source (a sales item must not resolve against service calls);
+ *  otherwise falls back to the embed's selected department, then "service". */
+export async function fetchConversations(customerId: string, department?: string): Promise<{ conversations: any[]; summary: any }> {
   const s = rawScope()
-  const dept = s.department && s.department !== "all" ? s.department : "service"
+  const dept = department && department !== "all"
+    ? department
+    : s.department && s.department !== "all" ? s.department : "service"
   const url = new URL(`${apiBase()}/conversation/customers/conversations`)
   url.searchParams.set("customer_id", customerId)
   if (s.enterpriseId) url.searchParams.set("enterprise_id", s.enterpriseId)

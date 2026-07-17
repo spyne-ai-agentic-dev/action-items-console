@@ -312,18 +312,25 @@ export function createdDayKey(item: ActionItem): "today" | "yesterday" | "older"
 /**
  * Fill in repeat_caller_count client-side: the backend never sends it (meta.repeat_caller_count
  * doesn't exist in real responses — it's always absent, so the field was silently stuck at 0 and
- * the "Repeat callers" filter/metric never matched anything). Counts how many of the CURRENTLY
- * LOADED items (pending + resolved + incorrect) share the same customer_id — a same-session proxy
- * for "this customer has reached out repeatedly" since the backend exposes no call-history count.
+ * the "Repeat callers" filter/metric never matched anything). A same-session proxy for "this
+ * customer has reached out repeatedly", since the backend exposes no call-history count.
+ *
+ * Counts DISTINCT conversations/calls per customer, not raw action items: a single call/email
+ * routinely spawns several action items, so counting items would mislabel a one-time contact as
+ * an N-time repeat caller. Items with no source id count as their own outreach (action_item_id
+ * fallback), matching prior behavior for those.
  */
 export function withRepeatCallerCounts(items: ActionItem[]): ActionItem[] {
-  const byCustomer = new Map<string, number>();
+  const byCustomer = new Map<string, Set<string>>();
   for (const it of items) {
     if (!it.customer_id) continue;
-    byCustomer.set(it.customer_id, (byCustomer.get(it.customer_id) ?? 0) + 1);
+    const source = it.source_conversation_id || it.source_call_id || it.action_item_id;
+    const set = byCustomer.get(it.customer_id) ?? new Set<string>();
+    set.add(source);
+    byCustomer.set(it.customer_id, set);
   }
   return items.map((it) => {
-    const n = it.customer_id ? byCustomer.get(it.customer_id) ?? 1 : it.repeat_caller_count;
+    const n = it.customer_id ? byCustomer.get(it.customer_id)?.size ?? 1 : it.repeat_caller_count;
     return n === it.repeat_caller_count ? it : { ...it, repeat_caller_count: n };
   });
 }
