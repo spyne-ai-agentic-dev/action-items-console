@@ -291,6 +291,16 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
     if (isLive && !(await markIncorrectActionItems(id, reason, note, actingUser?.id))) flash('Saved in view — backend flag not reachable yet')
   }
   const undoIncorrect = (id) => { setItems((p) => p.map((i) => (i.action_item_id === id ? { ...i, status: 'pending', incorrect_reason: undefined, corrected_intent_id: undefined, ...(i.original_intent_id ? { intent_id: i.original_intent_id, original_intent_id: undefined } : {}) } : i))); flash('Restored to Unresolved') }
+  // Reopen a Resolved item — same pattern as undoIncorrect: local-only optimistic revert (no
+  // backend "unresolve" endpoint exists yet). Moves the item back to pending so it re-enters
+  // Unresolved with Resolve/Assign/Incorrect actions restored.
+  const reopen = (id) => {
+    setItems((p) => p.map((i) => (i.action_item_id === id
+      ? { ...i, status: 'pending', resolution_type: undefined, resolution_note: undefined, closed_at: undefined }
+      : i)))
+    setResolvedDetailId(null)
+    flash('Reopened — moved to Unresolved')
+  }
   const assign = async (id, userId) => {
     const it = items.find((i) => i.action_item_id === id)
     const leadId = it?.lead_id || it?.customer_id
@@ -418,7 +428,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
       </div>
 
       {tab === 'resolved' ? (
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1"><ResolvedList items={resolved} openId={resolvedDetailId} onOpen={setResolvedDetailId} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1"><ResolvedList items={resolved} openId={resolvedDetailId} onOpen={setResolvedDetailId} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} onReopen={reopen} /></div>
       ) : tab === 'incorrect' ? (
         <div className="min-h-0 flex-1 overflow-y-auto pr-1"><IncorrectList items={incorrect} onUndo={undoIncorrect} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} /></div>
       ) : (
@@ -540,7 +550,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
       {createOpen && !readOnly && (
         <CreateActionItemModal onCreate={(item) => { setItems((p) => [item, ...p]); flash('Action item created'); }} onClose={() => setCreateOpen(false)} />
       )}
-      {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} onEditSla={() => setSlaVersion((v) => v + 1)}
+      {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} onEditSla={() => setSlaVersion((v) => v + 1)} dept={filters.dept}
         onPersistSla={isLive ? ((code, minutes, dept) => upsertDealerIntentConfig({ intentCode: code, serviceType: dept === 'sales' ? 'sales' : 'service', customSlaMinutes: minutes, updatedBy: actingUser?.id || 'console' })) : null} />}
     </div>
   )
@@ -1180,7 +1190,7 @@ function ResolvePicker({ onResolve, onCancel }) {
 
 /* ── Resolved tab (clickable rows → detail) ──────────────────────── */
 
-function ResolvedList({ items, openId, onOpen, onOpenSidebar, onOpenSource }) {
+function ResolvedList({ items, openId, onOpen, onOpenSidebar, onOpenSource, onReopen }) {
   const [f, setF] = useState({ search: '', resolution: 'all', intent: 'all', resolvedBy: 'all', created: 'all', resolvedDate: 'all', pastSla: false })
   if (items.length === 0) return (
     <div className="spyne-card">
@@ -1246,7 +1256,7 @@ function ResolvedList({ items, openId, onOpen, onOpenSidebar, onOpenSource }) {
         </div>
         <div className="spyne-card flex min-h-[280px] flex-col p-0">
           {open ? (
-            <ClosedDetail item={open} onOpenSidebar={onOpenSidebar} onOpenSource={onOpenSource} />
+            <ClosedDetail item={open} onOpenSidebar={onOpenSidebar} onOpenSource={onOpenSource} onReopen={onReopen} />
           ) : (
             <EmptyState glyph="receipt_long" title="Select a resolved item" helper="Open any row to see its full record and resolution note." className="flex-1" />
           )}
@@ -1258,7 +1268,7 @@ function ResolvedList({ items, openId, onOpen, onOpenSidebar, onOpenSource }) {
 }
 
 /** Shared read-only detail for resolved (and reusable for closed) items. */
-function ClosedDetail({ item, onOpenSidebar, onOpenSource }) {
+function ClosedDetail({ item, onOpenSidebar, onOpenSource, onReopen }) {
   const intent = INTENT_TAXONOMY[item.intent_id]
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -1298,6 +1308,11 @@ function ClosedDetail({ item, onOpenSidebar, onOpenSource }) {
         <span className="ml-auto inline-flex items-center gap-1 text-[10px] tabular-nums" style={{ color: 'var(--spyne-text-muted)' }}><MaterialSymbol name="schedule" size={14} /> SLA {intent ? formatSla(intent.sla_hours) : '?'}</span>
       </div>
       <div className="border-t border-spyne-border pt-2.5"><ActivityTrail item={item} /></div>
+      {onReopen && (
+        <button onClick={() => onReopen(item.action_item_id)} className="spyne-btn-secondary !h-8 justify-center !text-[12px]">
+          <MaterialSymbol name="restart_alt" size={14} /> Reopen
+        </button>
+      )}
     </div>
   )
 }
@@ -1394,7 +1409,7 @@ function IncorrectDetail({ item, onOpenSidebar, onUndo, onOpenSource }) {
 
 /* ── Rules / config drawer (read-only demo) ──────────────────────── */
 
-function RulesPanel({ onClose, onEditSla, onPersistSla }) {
+function RulesPanel({ onClose, onEditSla, onPersistSla, dept }) {
   const [channelAuto, setChannelAuto] = useState(CHANNEL_AUTOCREATE_DEFAULTS)
   // Editable per-intent SLA (session-only). Mutates INTENT_TAXONOMY in memory + bumps the
   // parent's slaVersion so burn/sort/past-SLA recompute live; "Reset" restores SLA_DEFAULTS.
@@ -1437,14 +1452,18 @@ function RulesPanel({ onClose, onEditSla, onPersistSla }) {
   // In live mode the catalog is the source of truth → show ONLY live-catalog intents
   // (hides the bundled mock tags + camelCase stubs so the SLA config maps to real intent codes).
   const live = !!onPersistSla
+  // Opened from the Service tab → hide the Sales-only group (decisions-action-items.md row 63).
+  // Sales-opened / unscoped stays exactly as before (both groups) — Sales view is untouched.
+  const hideSalesGroup = dept === 'service'
   const byDept = useMemo(() => {
     const m = {}
     for (const intent of Object.values(INTENT_TAXONOMY)) {
       if (live && !intent.live) continue
+      if (hideSalesGroup && intent.dept === 'sales') continue
       ;(m[intent.dept] ||= []).push(intent)
     }
     return m
-  }, [live])
+  }, [live, hideSalesGroup])
 
   return (
     <div className="console-v2-sales-root max2-spyne">
