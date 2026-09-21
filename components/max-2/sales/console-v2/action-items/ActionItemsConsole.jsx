@@ -294,6 +294,10 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   // Reopen a Resolved item — same pattern as undoIncorrect: local-only optimistic revert (no
   // backend "unresolve" endpoint exists yet). Moves the item back to pending so it re-enters
   // Unresolved with Resolve/Assign/Incorrect actions restored.
+  // The Unresolved list matches the department on strict equality, so an item whose intent
+  // is dept 'both' is not listed under Sales or under Service. Reopening one would drop it out
+  // of Resolved and into nothing. Offer Reopen only where the item lands somewhere visible.
+  const canReopen = (i) => filters.dept === 'all' || deptOf(i) === filters.dept
   const reopen = (id) => {
     setItems((p) => p.map((i) => (i.action_item_id === id
       ? { ...i, status: 'pending', resolution_type: undefined, resolution_note: undefined, closed_at: undefined }
@@ -428,7 +432,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
       </div>
 
       {tab === 'resolved' ? (
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1"><ResolvedList items={resolved} openId={resolvedDetailId} onOpen={setResolvedDetailId} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} onReopen={reopen} /></div>
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1"><ResolvedList items={resolved} openId={resolvedDetailId} onOpen={setResolvedDetailId} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} onReopen={reopen} canReopen={canReopen} /></div>
       ) : tab === 'incorrect' ? (
         <div className="min-h-0 flex-1 overflow-y-auto pr-1"><IncorrectList items={incorrect} onUndo={undoIncorrect} onOpenSidebar={setSidebarCustomer} onOpenSource={(it, m) => setSourceView({ item: it, mode: m })} /></div>
       ) : (
@@ -1190,7 +1194,7 @@ function ResolvePicker({ onResolve, onCancel }) {
 
 /* ── Resolved tab (clickable rows → detail) ──────────────────────── */
 
-function ResolvedList({ items, openId, onOpen, onOpenSidebar, onOpenSource, onReopen }) {
+function ResolvedList({ items, openId, onOpen, onOpenSidebar, onOpenSource, onReopen, canReopen }) {
   const [f, setF] = useState({ search: '', resolution: 'all', intent: 'all', resolvedBy: 'all', created: 'all', resolvedDate: 'all', pastSla: false })
   if (items.length === 0) return (
     <div className="spyne-card">
@@ -1256,7 +1260,7 @@ function ResolvedList({ items, openId, onOpen, onOpenSidebar, onOpenSource, onRe
         </div>
         <div className="spyne-card flex min-h-[280px] flex-col p-0">
           {open ? (
-            <ClosedDetail item={open} onOpenSidebar={onOpenSidebar} onOpenSource={onOpenSource} onReopen={onReopen} />
+            <ClosedDetail item={open} onOpenSidebar={onOpenSidebar} onOpenSource={onOpenSource} onReopen={onReopen} canReopen={canReopen} />
           ) : (
             <EmptyState glyph="receipt_long" title="Select a resolved item" helper="Open any row to see its full record and resolution note." className="flex-1" />
           )}
@@ -1268,7 +1272,7 @@ function ResolvedList({ items, openId, onOpen, onOpenSidebar, onOpenSource, onRe
 }
 
 /** Shared read-only detail for resolved (and reusable for closed) items. */
-function ClosedDetail({ item, onOpenSidebar, onOpenSource, onReopen }) {
+function ClosedDetail({ item, onOpenSidebar, onOpenSource, onReopen, canReopen }) {
   const intent = INTENT_TAXONOMY[item.intent_id]
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -1308,7 +1312,7 @@ function ClosedDetail({ item, onOpenSidebar, onOpenSource, onReopen }) {
         <span className="ml-auto inline-flex items-center gap-1 text-[10px] tabular-nums" style={{ color: 'var(--spyne-text-muted)' }}><MaterialSymbol name="schedule" size={14} /> SLA {intent ? formatSla(intent.sla_hours) : '?'}</span>
       </div>
       <div className="border-t border-spyne-border pt-2.5"><ActivityTrail item={item} /></div>
-      {onReopen && (
+      {onReopen && (!canReopen || canReopen(item)) && (
         <button onClick={() => onReopen(item.action_item_id)} className="spyne-btn-secondary !h-8 justify-center !text-[12px]">
           <MaterialSymbol name="restart_alt" size={14} /> Reopen
         </button>
