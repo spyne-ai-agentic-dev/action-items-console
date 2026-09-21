@@ -299,7 +299,7 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
       ? { ...i, status: 'pending', resolution_type: undefined, resolution_note: undefined, closed_at: undefined }
       : i)))
     setResolvedDetailId(null)
-    flash('Reopened — moved to Unresolved')
+    flash('Reopened in view — no backend unresolve endpoint yet')
   }
   const assign = async (id, userId) => {
     const it = items.find((i) => i.action_item_id === id)
