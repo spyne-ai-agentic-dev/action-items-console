@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation"
 import { ActionItemsConsole } from "@/components/max-2/sales/console-v2/action-items"
 import { fetchActionItems } from "@/components/max-2/sales/console-v2/action-items/be-client"
 import type { ActionItem } from "@/components/max-2/sales/console-v2/action-items/data"
+import PilotActionAlerts from "@/components/pilot/PilotActionAlerts"
+import { isPilot } from "@/lib/pilot"
 
 /**
  * Standalone Action Items — the iframe target.
@@ -132,10 +134,33 @@ function ScopeHelper() {
   )
 }
 
+/**
+ * Pilot gate. Only a Service view for a pilot team_id gets the new design.
+ * Sales, Reception and every non-pilot rooftop fall through to ActionItemsApp,
+ * which is today's page, untouched.
+ */
+function GatedApp() {
+  const params = useSearchParams()
+  const team = params.get("teamId") ?? params.get("team_id") ?? ""
+  const env = (params.get("env") ?? params.get("environment") ?? "prod").toLowerCase()
+  const serviceType = (params.get("serviceType") ?? params.get("department") ?? "").toLowerCase()
+  if (serviceType === "service" && isPilot(team, env)) {
+    return (
+      <PilotActionAlerts
+        env={env}
+        token={params.get("token") ?? params.get("bearerToken") ?? ""}
+        enterpriseId={params.get("enterpriseId") ?? params.get("enterprise_id") ?? ""}
+        teamId={team}
+      />
+    )
+  }
+  return <ActionItemsApp />
+}
+
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <ActionItemsApp />
+      <GatedApp />
     </Suspense>
   )
 }
