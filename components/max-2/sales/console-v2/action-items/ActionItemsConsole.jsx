@@ -21,6 +21,7 @@ import CreateActionItemModal from './CreateActionItemModal'
 import CustomerSidebar from './CustomerSidebar'
 import CallConversationDrawer from './CallConversationDrawer'
 import { fetchUsers, assignActionItem, resolveActionItems, markIncorrectActionItems, fetchLiveTaxonomy, upsertDealerIntentConfig } from './be-client'
+import { fetchServiceMetricsHero } from './serviceMetrics'
 import {
   ACTION_ITEMS, INTENT_TAXONOMY, DEPT_BADGE, DEPT_LABEL, CHANNEL_META, CUSTOMERS, USERS,
   CURRENT_USER_ID,
@@ -28,6 +29,12 @@ import {
   ageLabel, ageMinutes, isPastSla, slaBurnRatio, deptOf,
   formatCreatedAt, formatSla, createdDayKey, mergeLiveIntents,
 } from './data'
+
+// RETCONVAI-5066. Flag OFF (default) = today's behaviour exactly, every department.
+// Flag ON affects Service only — see serviceMetrics.ts for what it swaps and why the
+// row list itself stays on the existing endpoint (assignment write needs lead_id/
+// customer_id, which the twin endpoint's own list rows do not carry).
+const SERVICE_METRICS_OLD_VIEW_ON = process.env.NEXT_PUBLIC_SERVICE_METRICS_OLD_VIEW === 'on'
 
 // Snapshot of the predefined per-intent SLA hours (captured before any in-session edit),
 // so the Rules panel can offer "Reset SLAs". Edits mutate INTENT_TAXONOMY in memory only
@@ -116,6 +123,20 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
 
   const [users, setUsers] = useState([]) // live assignable users (embed scope)
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600) }
+
+  // Service-metrics twin for the SLA hero (RETCONVAI-5066) — Service + flag on only.
+  // null = not loaded yet / not applicable; the hero hides rather than showing a stale
+  // or client-computed number under a flag that promises a single source of truth.
+  const useServiceMetricsTwin = SERVICE_METRICS_OLD_VIEW_ON && filters.dept === 'service'
+  const [serviceMetricsHero, setServiceMetricsHero] = useState(null)
+  useEffect(() => {
+    if (!initialItems || !useServiceMetricsTwin) { setServiceMetricsHero(null); return }
+    let cancelled = false
+    fetchServiceMetricsHero()
+      .then((hero) => { if (!cancelled) setServiceMetricsHero(hero) })
+      .catch(() => { if (!cancelled) setServiceMetricsHero(null) })
+    return () => { cancelled = true }
+  }, [initialItems, useServiceMetricsTwin])
 
   // The acting BDC resolved to { id, name, email } from the live user list (+ host-passed email).
   const actingUser = useMemo(() => {
@@ -208,12 +229,26 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
   }, [filteredPending, groupBy, slaVersion])
 
   // Top-bar metrics reflect the active DEPARTMENT only (deptPending/deptResolved), not the 100-item total.
-  const metrics = useMemo(() => ({
+  // Service + flag on: read the same /service-metrics/action-item numbers the new Service
+  // Overview and native Action Items page read (serviceMetrics.ts), instead of counting the
+  // loaded item page. Each number is independently null (hidden) if its twin is unavailable —
+  // never mixed with the client-computed figure below it.
+  const clientMetrics = useMemo(() => ({
     breaching: deptPending.filter(isPastSla).length,
     unassigned: deptPending.filter((i) => !i.assignee_user_id).length,
     repeatCallers: new Set(deptPending.filter((i) => i.repeat_caller_count >= 3).map((i) => i.customer_id)).size,
     clearedToday: deptResolved.filter((i) => i.closed_at && createdDayKey({ ...i, created_at: i.closed_at }) === 'today').length,
   }), [deptPending, deptResolved, slaVersion])
+  const metrics = useMemo(() => (
+    useServiceMetricsTwin
+      ? {
+          breaching: serviceMetricsHero?.breaching ?? null,
+          unassigned: serviceMetricsHero?.unassigned ?? null,
+          repeatCallers: serviceMetricsHero?.repeatCallers ?? null,
+          clearedToday: serviceMetricsHero?.clearedToday ?? null,
+        }
+      : clientMetrics
+  ), [useServiceMetricsTwin, serviceMetricsHero, clientMetrics])
 
   // ── Selection resolution ──────────────────────────────────────────
   // None view → a single item; grouped views → a group's worth of items.
@@ -552,6 +587,11 @@ export function ActionItemsConsole({ readOnly = false, initialItems, initialDept
    quiet, divider-separated rail on the right so the eye lands on the hero first. */
 
 function SlaHero({ metrics, filters, onApply, onClearedToday }) {
+  // Past SLA now (the hero number) has no trustworthy source right now (twin unavailable,
+  // still loading, or the fetch failed) — hide the whole banner rather than a stale/guessed
+  // number. This only fires when the service-metrics twin is active and its own numbers
+  // are not there yet; the client-computed path always has a number.
+  if (metrics.breaching == null) return null
   const breaching = metrics.breaching > 0
   const pastActive = filters?.sla === 'past'
   const heroTone = breaching ? 'var(--spyne-danger-text)' : 'var(--spyne-success-text)'
@@ -593,14 +633,27 @@ function SlaHero({ metrics, filters, onApply, onClearedToday }) {
         </div>
       </button>
 
-      {/* Secondary queue stats — demoted, divider-separated rail; each is a one-click filter */}
-      <div className="ml-auto flex items-stretch gap-3">
-        <HeroStat n={metrics.unassigned} label="Unassigned" icon="person_off" tone="var(--spyne-warning-ink)" active={filters?.assignment === 'unassigned'} onClick={() => onApply?.({ assignment: filters?.assignment === 'unassigned' ? 'all' : 'unassigned' })} />
-        <span className="w-px self-stretch" style={{ background: 'var(--spyne-border)' }} />
-        <HeroStat n={metrics.repeatCallers} label="Repeat callers" icon="autorenew" tone="var(--spyne-primary)" active={!!filters?.repeat} onClick={() => onApply?.({ repeat: !filters?.repeat })} />
-        <span className="w-px self-stretch" style={{ background: 'var(--spyne-border)' }} />
-        <HeroStat n={metrics.clearedToday} label="Cleared today" icon="task_alt" tone="var(--spyne-success-text)" onClick={onClearedToday} />
-      </div>
+      {/* Secondary queue stats — demoted, divider-separated rail; each is a one-click filter.
+          Each is independently hidden when its own number has no trustworthy source, rather
+          than falling back to 0 or a dash (never mixed per-stat with the hero's source). */}
+      <SecondaryStats metrics={metrics} filters={filters} onApply={onApply} onClearedToday={onClearedToday} />
+    </div>
+  )
+}
+
+function SecondaryStats({ metrics, filters, onApply, onClearedToday }) {
+  const stats = [
+    metrics.unassigned != null && { key: 'unassigned', n: metrics.unassigned, label: 'Unassigned', icon: 'person_off', tone: 'var(--spyne-warning-ink)', active: filters?.assignment === 'unassigned', onClick: () => onApply?.({ assignment: filters?.assignment === 'unassigned' ? 'all' : 'unassigned' }) },
+    metrics.repeatCallers != null && { key: 'repeat', n: metrics.repeatCallers, label: 'Repeat callers', icon: 'autorenew', tone: 'var(--spyne-primary)', active: !!filters?.repeat, onClick: () => onApply?.({ repeat: !filters?.repeat }) },
+    metrics.clearedToday != null && { key: 'cleared', n: metrics.clearedToday, label: 'Cleared today', icon: 'task_alt', tone: 'var(--spyne-success-text)', onClick: onClearedToday },
+  ].filter(Boolean)
+  if (stats.length === 0) return null
+  return (
+    <div className="ml-auto flex items-stretch gap-3">
+      {stats.flatMap((s, i) => [
+        i > 0 ? <span key={`${s.key}-div`} className="w-px self-stretch" style={{ background: 'var(--spyne-border)' }} /> : null,
+        <HeroStat key={s.key} n={s.n} label={s.label} icon={s.icon} tone={s.tone} active={s.active} onClick={s.onClick} />,
+      ].filter(Boolean))}
     </div>
   )
 }
